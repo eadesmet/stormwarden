@@ -1,0 +1,35 @@
+So the vertexes stay the same, it's not changing the vertex buffer
+it's only changing the Constants buffer,
+and when used in the shader, it's adding an offset, which comes from the Constants buffer.
+
+So to add a static square, I need to make a new shader that doesn't add an offset?
+no.. I can just set a new constants buffer that has an offset of 0.
+
+Ok, got that working. But that's just a workaround to reuse the same shader.
+To actually draw a simple block background, it should have it's own basic shader.
+
+Hm. The vertex shader is supposed to be responsible for getting the coordinates into clip space
+so that's probably where I can do conversions
+I can have all my world in my own coordinates, and have the shader convert it to [-1,1]
+
+
+
+
+5/7 End of day notes:
+
+I have many questions on how to set this all up.
+My initial thoughts
+
+I have some render struct thing
+when i output some render struct thing, I throw it in a buffer for d3d to read
+then in the vertex shader, i convert the vertices into clip space like it requires
+then profit?
+
+but like, what buffers need to be updating often vs init?
+	The long post was kinda good for this, explaining 3 different constant buffers
+	based on how often they are changing
+
+	so really, just continue reading that post
+
+I stopped reading right around "DirectX Demo Cont..." and "Load Demo Content"
+
