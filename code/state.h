@@ -5,14 +5,15 @@
 
 enum V_SHADER
 {
-    V_SHADER_GROUND,
-    V_SHADER_PLAYER,
+    V_SHADER_STATIC, // Non-moveable thing
+    V_SHADER_TEXTURE,
     
     V_SHADER_COUNT
 };
 enum P_SHADER
 {
-    P_SHADER_BASIC,
+    P_SHADER_STATIC,
+    P_SHADER_TEXTURE,
     
     P_SHADER_COUNT
 };

@@ -1,30 +1,11 @@
 
 #include "state.h"
 
-// TODO(Eric): I'm not sure if any of this makes sense to do
-// TODO(Eric): Don't be afraid of deleting it.
-
-// TODO(Eric): One problem with it already is the shared input layouts.
-// If one input layout matches multiple shaders, wouldn't we want to reuse it?
-
+// TODO(Eric): Don't be afraid of deleting all this.
 
 
 internal void
-CreateInputLayout(d3d_state *DState, ID3DBlob* VSBlob, V_SHADER Type)
-{
-    D3D11_INPUT_ELEMENT_DESC inputElementDesc[] =
-    {
-        { "POS", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }
-    };
-    
-    HRESULT hResult = DState->Device->CreateInputLayout(inputElementDesc, ARRAYSIZE(inputElementDesc), VSBlob->GetBufferPointer(), VSBlob->GetBufferSize(), &DState->Shaders.InputLayout[Type]);
-    assert(SUCCEEDED(hResult));
-    
-    VSBlob->Release();
-}
-
-internal ID3DBlob*
-CreateVertexShader(d3d_state *DState, V_SHADER Type, LPCWSTR ShaderFilePath)
+InitVertexShaderAndInputLayout(d3d_state *DState, V_SHADER Type, LPCWSTR ShaderFilePath)
 {
     // Create Vertex Shader
     ID3DBlob* vsBlob;
@@ -47,14 +28,39 @@ CreateVertexShader(d3d_state *DState, V_SHADER Type, LPCWSTR ShaderFilePath)
     hResult = DState->Device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &DState->Shaders.VertexShader[Type]);
     assert(SUCCEEDED(hResult));
     
-    return vsBlob;
-}
-
-internal void
-InitVertexShaderAndInputLayout(d3d_state *DState, V_SHADER Type, LPCWSTR ShaderFilePath)
-{
-    ID3DBlob* vsBlob = CreateVertexShader(DState, Type, ShaderFilePath);
-    CreateInputLayout(DState, vsBlob, Type);
+    // TODO(Eric): One problem with it already is the shared input layouts.
+    // If one input layout matches multiple shaders, wouldn't we want to reuse it?
+    
+    // Create the Input Layout
+    switch(Type)
+    {
+        case V_SHADER_STATIC:
+        {
+            D3D11_INPUT_ELEMENT_DESC inputElementDesc[] =
+            {
+                { "POS", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            };
+            hResult = DState->Device->CreateInputLayout(inputElementDesc, ARRAYSIZE(inputElementDesc), vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &DState->Shaders.InputLayout[Type]);
+            assert(SUCCEEDED(hResult));
+        }break;
+        case V_SHADER_TEXTURE:
+        {
+            D3D11_INPUT_ELEMENT_DESC inputElementDesc[] =
+            {
+                { "POS", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+                
+                { "TEX", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+            };
+            hResult = DState->Device->CreateInputLayout(inputElementDesc, ARRAYSIZE(inputElementDesc), vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &DState->Shaders.InputLayout[Type]);
+            assert(SUCCEEDED(hResult));
+        } break;
+        default:
+        {
+            assert(0);
+        }break;
+    }
+    
+    vsBlob->Release();
 }
 
 

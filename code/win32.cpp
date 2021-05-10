@@ -7,18 +7,39 @@
 
 #include <assert.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #define SCREEN_WIDTH  1024
 #define SCREEN_HEIGHT 768
 
 #define internal static
 
-static bool global_WindowDidResize = false;
-static LPCWSTR global_ShaderFileFullPath = L"C:/_Eric/Code/d3d/stormwarden/code/shaders.hlsl";
+static bool g_WindowDidResize = false;
 
-static LPCWSTR g_v_shader_ground_path = L"C:/_Eric/Code/d3d/stormwarden/code/vs_ground.hlsl";
+static LPCWSTR g_ShaderFileFullPath = L"../code/shaders.hlsl";
+static LPCWSTR g_v_shader_static_filepath = L"../code/vs_static.hlsl";
+
 
 #include "math.h"
 #include "state.cpp"
+
+// Input
+enum GameAction {
+    GameAction_W,
+    GameAction_A,
+    GameAction_S,
+    GameAction_D,
+    GameAction_LeftArrow,
+    GameAction_RightArrow,
+    GameAction_UpArrow,
+    GameAction_DownArrow,
+    GameAction_Q,
+    GameAction_E,
+    GameActionCount
+};
+static bool g_keyIsDown[GameActionCount] = {};
+
 
 LRESULT CALLBACK 
 WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -26,13 +47,65 @@ WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     LRESULT Result = 0;
     switch(message)
     {
+        case WM_KEYUP:
         case WM_KEYDOWN:
         {
+            bool isDown = (message == WM_KEYDOWN);
             switch(wParam)
             {
                 case VK_ESCAPE:
                 {
                     DestroyWindow(hWnd);
+                    break;
+                }
+                case 'W':
+                {
+                    g_keyIsDown[GameAction_W] = isDown;
+                    break;
+                }
+                case 'A':
+                {
+                    g_keyIsDown[GameAction_A] = isDown;
+                    break;
+                }
+                case 'S':
+                {
+                    g_keyIsDown[GameAction_S] = isDown;
+                    break;
+                }
+                case 'D':
+                {
+                    g_keyIsDown[GameAction_D] = isDown;
+                    break;
+                }
+                case 'Q':
+                {
+                    g_keyIsDown[GameAction_Q] = isDown;
+                    break;
+                }
+                case 'E':
+                {
+                    g_keyIsDown[GameAction_E] = isDown;
+                    break;
+                }
+                case VK_UP:
+                {
+                    g_keyIsDown[GameAction_UpArrow] = isDown;
+                    break;
+                }
+                case VK_DOWN:
+                {
+                    g_keyIsDown[GameAction_DownArrow] = isDown;
+                    break;
+                }
+                case VK_LEFT:
+                {
+                    g_keyIsDown[GameAction_LeftArrow] = isDown;
+                    break;
+                }
+                case VK_RIGHT:
+                {
+                    g_keyIsDown[GameAction_RightArrow] = isDown;
                     break;
                 }
             }
@@ -45,7 +118,7 @@ WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         case WM_SIZE:
         {
-            global_WindowDidResize = true;
+            g_WindowDidResize = true;
             break;
         }
         default:
@@ -208,82 +281,22 @@ WinMain(HINSTANCE hInstance,
         d3d11FrameBuffer->Release();
     }
     
-    // Create Vertex Shader
-    ID3DBlob* vsBlob;
-    ID3D11VertexShader* vertexShader;
-    {
-        ID3DBlob* shaderCompileErrorsBlob;
-        HRESULT hResult = D3DCompileFromFile(global_ShaderFileFullPath, nullptr, nullptr, "vs_main", "vs_5_0", 0, 0, &vsBlob, &shaderCompileErrorsBlob);
-        if(FAILED(hResult))
-        {
-            const char* errorString = NULL;
-            if(hResult == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
-                errorString = "Could not compile shader; file not found";
-            else if(shaderCompileErrorsBlob){
-                errorString = (const char*)shaderCompileErrorsBlob->GetBufferPointer();
-                shaderCompileErrorsBlob->Release();
-            }
-            MessageBoxA(0, errorString, "Shader Compiler Error", MB_ICONERROR | MB_OK);
-            return 1;
-        }
-        
-        hResult = d3d11Device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &vertexShader);
-        assert(SUCCEEDED(hResult));
-    }
-    
-    // Create Pixel Shader
-    ID3D11PixelShader* pixelShader;
-    {
-        ID3DBlob* psBlob;
-        ID3DBlob* shaderCompileErrorsBlob;
-        HRESULT hResult = D3DCompileFromFile(global_ShaderFileFullPath, nullptr, nullptr, "ps_main", "ps_5_0", 0, 0, &psBlob, &shaderCompileErrorsBlob);
-        if(FAILED(hResult))
-        {
-            const char* errorString = NULL;
-            if(hResult == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
-                errorString = "Could not compile shader; file not found";
-            else if(shaderCompileErrorsBlob){
-                errorString = (const char*)shaderCompileErrorsBlob->GetBufferPointer();
-                shaderCompileErrorsBlob->Release();
-            }
-            MessageBoxA(0, errorString, "Shader Compiler Error", MB_ICONERROR | MB_OK);
-            return 1;
-        }
-        
-        hResult = d3d11Device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &pixelShader);
-        assert(SUCCEEDED(hResult));
-        psBlob->Release();
-    }
-    
-    // Create Input Layout
-    ID3D11InputLayout* inputLayout;
-    {
-        D3D11_INPUT_ELEMENT_DESC inputElementDesc[] =
-        {
-            { "POS", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }
-        };
-        
-        HRESULT hResult = d3d11Device->CreateInputLayout(inputElementDesc, ARRAYSIZE(inputElementDesc), vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &inputLayout);
-        assert(SUCCEEDED(hResult));
-        vsBlob->Release();
-    }
-    
     // Create Vertex Buffer
     ID3D11Buffer* vertexBuffer;
     UINT numVerts;
     UINT stride;
     UINT offset;
     {
-        float vertexData[] = { // x, y
-            -0.5f,  0.5f, // Upper-left
-            0.5f, -0.5f,  // Bottom-Right
-            -0.5f, -0.5f, // Bottom-Left
+        float vertexData[] = { // x, y, u, v
+            -0.5f,  0.5f, 0.0f, 0.0f,  // Upper-left
+            0.5f, -0.5f,  1.0f, 1.0f,  // Bottom-Right
+            -0.5f, -0.5f, 0.0f, 1.0f,  // Bottom-Left
             
-            -0.5f,  0.5f, // Upper-left (Again!)
-            0.5f,  0.5f,  // Upper-Right
-            0.5f, -0.5f   // Bottom-Right
+            -0.5f,  0.5f, 0.0f, 0.0f,  // Upper-left (Again! (Triangles!))
+            0.5f,  0.5f,  1.0f, 0.0f,   // Upper-Right
+            0.5f, -0.5f,  1.0f, 1.0f   // Bottom-Right
         };
-        stride = 2 * sizeof(float);
+        stride = 4 * sizeof(float);
         numVerts = sizeof(vertexData) / stride;
         offset = 0;
         
@@ -298,23 +311,24 @@ WinMain(HINSTANCE hInstance,
         assert(SUCCEEDED(hResult));
     }
     
-    ID3D11Buffer* MyVertexBuffer;
-    UINT MyNumVerts;
-    UINT MyStride;
-    UINT MyOffset;
+    // Create Vertex Buffer
+    ID3D11Buffer* StaticVertexBuffer;
+    UINT Static_numVerts;
+    UINT Static_stride;
+    UINT Static_offset;
     {
         float vertexData[] = { // x, y
-            -0.75f,  0.25f, // Upper-left
-            0.25f, -0.75f,  // Bottom-Right
-            -0.75f, -0.75f, // Bottom-Left
+            -0.75f,  0.5f, // Upper-left
+            -0.5f, -0.5f,   // Bottom-Right
+            -0.75f, -0.5f, // Bottom-Left
             
-            -0.75f,  0.25f, // Upper-left (Again!)
-            0.25f,  0.25f,  // Upper-Right
-            0.25f, -0.75f   // Bottom-Right
+            -0.75f,  0.5f, // Upper-left
+            -0.5f,  0.5f,   // Upper-right
+            -0.5f, -0.5f    // Bottom-right
         };
-        MyStride = 2 * sizeof(float);
-        MyNumVerts = sizeof(vertexData) / stride;
-        MyOffset = 0;
+        Static_stride = 2 * sizeof(float);
+        Static_numVerts = sizeof(vertexData) / Static_stride;
+        Static_offset = 0;
         
         D3D11_BUFFER_DESC vertexBufferDesc = {};
         vertexBufferDesc.ByteWidth = sizeof(vertexData);
@@ -323,15 +337,68 @@ WinMain(HINSTANCE hInstance,
         
         D3D11_SUBRESOURCE_DATA vertexSubresourceData = { vertexData };
         
-        HRESULT hResult = d3d11Device->CreateBuffer(&vertexBufferDesc, &vertexSubresourceData, &MyVertexBuffer);
+        HRESULT hResult = d3d11Device->CreateBuffer(&vertexBufferDesc, &vertexSubresourceData, &StaticVertexBuffer);
         assert(SUCCEEDED(hResult));
     }
     
+    // Create Sampler State
+    ID3D11SamplerState* samplerState;
+    {
+        D3D11_SAMPLER_DESC samplerDesc = {};
+        samplerDesc.Filter         = D3D11_FILTER_MIN_MAG_MIP_POINT;
+        samplerDesc.AddressU       = D3D11_TEXTURE_ADDRESS_BORDER;
+        samplerDesc.AddressV       = D3D11_TEXTURE_ADDRESS_BORDER;
+        samplerDesc.AddressW       = D3D11_TEXTURE_ADDRESS_BORDER;
+        samplerDesc.BorderColor[0] = 1.0f;
+        samplerDesc.BorderColor[1] = 1.0f;
+        samplerDesc.BorderColor[2] = 1.0f;
+        samplerDesc.BorderColor[3] = 1.0f;
+        samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+        
+        d3d11Device->CreateSamplerState(&samplerDesc, &samplerState);
+    }
+    
+    // Load Image
+    int texWidth, texHeight, texNumChannels;
+    int texForceNumChannels = 4;
+    unsigned char* testTextureBytes = stbi_load("../assets/test.png", &texWidth, &texHeight,
+                                                &texNumChannels, texForceNumChannels);
+    assert(testTextureBytes);
+    int texBytesPerRow = 4 * texWidth;
+    
+    // Create Texture
+    ID3D11ShaderResourceView* textureView;
+    {
+        D3D11_TEXTURE2D_DESC textureDesc = {};
+        textureDesc.Width              = texWidth;
+        textureDesc.Height             = texHeight;
+        textureDesc.MipLevels          = 1;
+        textureDesc.ArraySize          = 1;
+        textureDesc.Format             = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+        textureDesc.SampleDesc.Count   = 1;
+        textureDesc.Usage              = D3D11_USAGE_IMMUTABLE;
+        textureDesc.BindFlags          = D3D11_BIND_SHADER_RESOURCE;
+        
+        D3D11_SUBRESOURCE_DATA textureSubresourceData = {};
+        textureSubresourceData.pSysMem = testTextureBytes;
+        textureSubresourceData.SysMemPitch = texBytesPerRow;
+        
+        ID3D11Texture2D* texture;
+        d3d11Device->CreateTexture2D(&textureDesc, &textureSubresourceData, &texture);
+        
+        d3d11Device->CreateShaderResourceView(texture, nullptr, &textureView);
+        texture->Release();
+    }
+    
+    free(testTextureBytes);
+    
+#if 0
     // Create Constant Buffer
     struct Constants
     {
         float2 pos;
-        float2 paddingUnused; // color (below) needs to be 16-byte aligned! 
+        //float2 paddingUnused; // color (below) needs to be 16-byte aligned! 
+        float2 uv; // NOTE(Eric): I could do this here, but would uv ever need to be passed in?
         float4 color;
     };
     
@@ -348,7 +415,6 @@ WinMain(HINSTANCE hInstance,
         assert(SUCCEEDED(hResult));
     }
     
-    
     ID3D11Buffer* MyConstantBuffer;
     {
         D3D11_BUFFER_DESC constantBufferDesc = {};
@@ -361,6 +427,45 @@ WinMain(HINSTANCE hInstance,
         HRESULT hResult = d3d11Device->CreateBuffer(&constantBufferDesc, nullptr, &MyConstantBuffer);
         assert(SUCCEEDED(hResult));
     }
+#else
+    struct Constants
+    {
+        float4x4 modelViewProj;
+    };
+    
+    ID3D11Buffer* constantBuffer;
+    {
+        D3D11_BUFFER_DESC constantBufferDesc = {};
+        // ByteWidth must be a multiple of 16, per the docs
+        constantBufferDesc.ByteWidth      = sizeof(Constants) + 0xf & 0xfffffff0;
+        constantBufferDesc.Usage          = D3D11_USAGE_DYNAMIC;
+        constantBufferDesc.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
+        constantBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        
+        HRESULT hResult = d3d11Device->CreateBuffer(&constantBufferDesc, nullptr, &constantBuffer);
+        assert(SUCCEEDED(hResult));
+    }
+    
+#endif
+    
+    ID3D11RasterizerState* rasterizerState;
+    {
+        D3D11_RASTERIZER_DESC rasterizerDesc = {};
+        rasterizerDesc.FillMode = D3D11_FILL_SOLID;
+        rasterizerDesc.CullMode = D3D11_CULL_NONE; // Show the texture front and back
+        rasterizerDesc.FrontCounterClockwise = FALSE; // Which side to show, if culling
+        
+        d3d11Device->CreateRasterizerState(&rasterizerDesc, &rasterizerState);
+    }
+    
+    // Camera
+    float3 cameraPos = {0, 0, 2};
+    float3 cameraFwd = {0, 0, -1};
+    float cameraPitch = 0.f;
+    float cameraYaw = 0.f;
+    
+    float4x4 perspectiveMat = {};
+    g_WindowDidResize = true; // To force initial perspectiveMat calculation
     
     
     // Timing
@@ -379,8 +484,11 @@ WinMain(HINSTANCE hInstance,
     d3d_state DState = {};
     DState.Device = d3d11Device;
     DState.DeviceContext = d3d11DeviceContext;
-    InitVertexShaderAndInputLayout(&DState, V_SHADER_GROUND, global_ShaderFileFullPath);
-    InitPixelShader(&DState, P_SHADER_BASIC, global_ShaderFileFullPath);
+    InitVertexShaderAndInputLayout(&DState, V_SHADER_TEXTURE, g_ShaderFileFullPath);
+    InitPixelShader(&DState, P_SHADER_TEXTURE, g_ShaderFileFullPath);
+    
+    InitVertexShaderAndInputLayout(&DState, V_SHADER_STATIC, g_v_shader_static_filepath);
+    InitPixelShader(&DState, P_SHADER_STATIC, g_v_shader_static_filepath);
     
     // Main Loop
     bool isRunning = true;
@@ -408,7 +516,18 @@ WinMain(HINSTANCE hInstance,
             DispatchMessageW(&msg);
         }
         
-        if(global_WindowDidResize)
+        // Get window dimensions
+        int windowWidth, windowHeight;
+        float windowAspectRatio;
+        {
+            RECT clientRect;
+            GetClientRect(hwnd, &clientRect);
+            windowWidth = clientRect.right - clientRect.left;
+            windowHeight = clientRect.bottom - clientRect.top;
+            windowAspectRatio = (float)windowWidth / (float)windowHeight;
+        }
+        
+        if(g_WindowDidResize)
         {
             d3d11DeviceContext->OMSetRenderTargets(0, 0, 0);
             d3d11FrameBufferView->Release();
@@ -425,8 +544,82 @@ WinMain(HINSTANCE hInstance,
             assert(SUCCEEDED(res));
             d3d11FrameBuffer->Release();
             
-            global_WindowDidResize = false;
+            perspectiveMat = makePerspectiveMat(windowAspectRatio, degreesToRadians(84), 0.1f, 1000.f);
+            
+            g_WindowDidResize = false;
         }
+        
+        // NOTE(Eric): NEW CAMERA STUFF
+        // Update camera
+        {
+            float3 camFwdXZ = normalise({cameraFwd.x, 0, cameraFwd.z});
+            float3 cameraRightXZ = cross(camFwdXZ, {0, 1, 0});
+            
+            const float CAM_MOVE_SPEED = 5.f; // in metres per second
+            const float CAM_MOVE_AMOUNT = CAM_MOVE_SPEED * dt;
+            if(g_keyIsDown[GameAction_W])
+                cameraPos += camFwdXZ * CAM_MOVE_AMOUNT;
+            if(g_keyIsDown[GameAction_S])
+                cameraPos -= camFwdXZ * CAM_MOVE_AMOUNT;
+            if(g_keyIsDown[GameAction_A])
+                cameraPos -= cameraRightXZ * CAM_MOVE_AMOUNT;
+            if(g_keyIsDown[GameAction_D])
+                cameraPos += cameraRightXZ * CAM_MOVE_AMOUNT;
+            if(g_keyIsDown[GameAction_Q])
+                cameraPos.y += CAM_MOVE_AMOUNT;
+            if(g_keyIsDown[GameAction_E])
+                cameraPos.y -= CAM_MOVE_AMOUNT;
+            
+            const float CAM_TURN_SPEED = M_PI; // in radians per second
+            const float CAM_TURN_AMOUNT = CAM_TURN_SPEED * dt;
+            if(g_keyIsDown[GameAction_LeftArrow])
+                cameraYaw += CAM_TURN_AMOUNT;
+            if(g_keyIsDown[GameAction_RightArrow])
+                cameraYaw -= CAM_TURN_AMOUNT;
+            if(g_keyIsDown[GameAction_UpArrow])
+                cameraPitch += CAM_TURN_AMOUNT;
+            if(g_keyIsDown[GameAction_DownArrow])
+                cameraPitch -= CAM_TURN_AMOUNT;
+            
+            // Wrap yaw to avoid floating-point errors if we turn too far
+            while(cameraYaw >= 2*M_PI) 
+                cameraYaw -= 2*M_PI;
+            while(cameraYaw <= -2*M_PI) 
+                cameraYaw += 2*M_PI;
+            
+            // Clamp pitch to stop camera flipping upside down
+            if(cameraPitch > degreesToRadians(85)) 
+                cameraPitch = degreesToRadians(85);
+            if(cameraPitch < -degreesToRadians(85)) 
+                cameraPitch = -degreesToRadians(85);
+        }
+        
+        // Calculate view matrix from camera data
+        // 
+        // float4x4 viewMat = inverse(rotateXMat(cameraPitch) * rotateYMat(cameraYaw) * translationMat(cameraPos));
+        // NOTE: We can simplify this calculation to avoid inverse()!
+        // Applying the rule inverse(A*B) = inverse(B) * inverse(A) gives:
+        // float4x4 viewMat = inverse(translationMat(cameraPos)) * inverse(rotateYMat(cameraYaw)) * inverse(rotateXMat(cameraPitch));
+        // The inverse of a rotation/translation is a negated rotation/translation:
+        float4x4 viewMat = translationMat(-cameraPos) * rotateYMat(-cameraYaw) * rotateXMat(-cameraPitch);
+        // Update the forward vector we use for camera movement:
+        cameraFwd = {-viewMat.m[2][0], -viewMat.m[2][1], -viewMat.m[2][2]};
+        
+        // Spin the quad
+        float4x4 modelMat = rotateYMat(0.2f * (float)(M_PI * currentTimeInSeconds));
+        
+        // Calculate model-view-projection matrix to send to shader
+        float4x4 modelViewProj = modelMat * viewMat * perspectiveMat;
+        
+#if 0
+        // Update constant buffer
+        D3D11_MAPPED_SUBRESOURCE mappedSubresourceMat;
+        d3d11DeviceContext->Map(ConstantBufferMat, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubresourceMat);
+        Constants_Mat* constants_mat = (Constants_Mat*)(mappedSubresourceMat.pData);
+        constants_mat->modelViewProj = modelViewProj;
+        d3d11DeviceContext->Unmap(ConstantBufferMat, 0);
+        // NOTE(Eric): END NEW CAMERA STUFF
+        
         
         // Modulate player's y-position
         float2 playerPos = {};
@@ -451,29 +644,54 @@ WinMain(HINSTANCE hInstance,
         constants->pos = playerPos;
         constants->color = playerColor;
         d3d11DeviceContext->Unmap(constantBuffer, 0);
+#endif
+        // Update constant buffer
+        D3D11_MAPPED_SUBRESOURCE mappedSubresource;
+        d3d11DeviceContext->Map(constantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubresource);
+        Constants* constants = (Constants*)(mappedSubresource.pData);
+        constants->modelViewProj = modelViewProj;
+        d3d11DeviceContext->Unmap(constantBuffer, 0);
+        
         
         FLOAT backgroundColor[4] = { 0.1f, 0.2f, 0.6f, 1.0f };
         d3d11DeviceContext->ClearRenderTargetView(d3d11FrameBufferView, backgroundColor);
         
-        RECT winRect;
-        GetClientRect(hwnd, &winRect);
-        D3D11_VIEWPORT viewport = { 0.0f, 0.0f, (FLOAT)(winRect.right - winRect.left), (FLOAT)(winRect.bottom - winRect.top), 0.0f, 1.0f };
+        
+        D3D11_VIEWPORT viewport = { 0.0f, 0.0f, (FLOAT)windowWidth, (FLOAT)windowHeight, 0.0f, 1.0f };
         d3d11DeviceContext->RSSetViewports(1, &viewport);
+        
+        DState.DeviceContext->RSSetState(rasterizerState);
         
         d3d11DeviceContext->OMSetRenderTargets(1, &d3d11FrameBufferView, nullptr);
         
         d3d11DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        //d3d11DeviceContext->IASetInputLayout(inputLayout);
-        d3d11DeviceContext->IASetInputLayout(DState.Shaders.InputLayout[V_SHADER_GROUND]);
+        d3d11DeviceContext->IASetInputLayout(DState.Shaders.InputLayout[V_SHADER_TEXTURE]);
         
-        //d3d11DeviceContext->VSSetShader(vertexShader, nullptr, 0);
-        d3d11DeviceContext->VSSetShader(DState.Shaders.VertexShader[V_SHADER_GROUND], nullptr, 0);
-        d3d11DeviceContext->PSSetShader(pixelShader, nullptr, 0);
+        d3d11DeviceContext->VSSetShader(DState.Shaders.VertexShader[V_SHADER_TEXTURE], nullptr, 0);
+        d3d11DeviceContext->PSSetShader(DState.Shaders.PixelShader[P_SHADER_TEXTURE], nullptr, 0);
+        
+        d3d11DeviceContext->PSSetShaderResources(0, 1, &textureView);
+        d3d11DeviceContext->PSSetSamplers(0, 1, &samplerState);
         
         d3d11DeviceContext->VSSetConstantBuffers(0, 1, &constantBuffer);
-        
         d3d11DeviceContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
+        d3d11DeviceContext->Draw(numVerts, 0);
         
+        
+#if 1
+        // TODO(Eric): This is only 1 triangle, when it should be two (square)?m
+        // NOTE(Eric): TESTING
+        d3d11DeviceContext->VSSetShader(DState.Shaders.VertexShader[V_SHADER_STATIC], nullptr, 0);
+        d3d11DeviceContext->PSSetShader(DState.Shaders.PixelShader[P_SHADER_STATIC], nullptr, 0);
+        
+        d3d11DeviceContext->IASetVertexBuffers(0, 1, &StaticVertexBuffer, &Static_stride, &Static_offset);
+        d3d11DeviceContext->Draw(Static_numVerts, 0);
+#endif
+        
+        
+#if 0
+        d3d11DeviceContext->VSSetConstantBuffers(0, 1, &constantBuffer);
+        d3d11DeviceContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
         d3d11DeviceContext->Draw(numVerts, 0);
         
         
@@ -484,21 +702,24 @@ WinMain(HINSTANCE hInstance,
             
             // Update constant buffer
             D3D11_MAPPED_SUBRESOURCE MyMappedSubresource;
-            d3d11DeviceContext->Map(MyConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MyMappedSubresource);
+            DState.DeviceContext->Map(MyConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MyMappedSubresource);
             Constants* MyConstants = (Constants*)(MyMappedSubresource.pData);
-            MyConstants->pos = {0.0f, 0.0f};
-            MyConstants->color = {0.0f, 0.0f, 0.0f, 0.0f};
-            d3d11DeviceContext->Unmap(MyConstantBuffer, 0);
+            MyConstants->pos = {-0.5f, 0.0f};
+            MyConstants->color = {0.2f, 0.8f, 0.4f, 1.0f};
+            DState.DeviceContext->Unmap(MyConstantBuffer, 0);
             
-            
-            d3d11DeviceContext->VSSetConstantBuffers(0, 1, &MyConstantBuffer);
-            d3d11DeviceContext->IASetVertexBuffers(0, 1, &MyVertexBuffer, &MyStride, &MyOffset);
-            d3d11DeviceContext->Draw(MyNumVerts, 0);
+            DState.DeviceContext->VSSetConstantBuffers(0, 1, &MyConstantBuffer);
+            //DState.DeviceContext->IASetVertexBuffers(0, 1, &MyVertexBuffer, &MyStride, &MyOffset);
+            //DState.DeviceContext->Draw(MyNumVerts, 0);
+            d3d11DeviceContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
+            d3d11DeviceContext->Draw(numVerts, 0);
         }
+#endif
         
         d3d11SwapChain->Present(1, 0);
     }
     
     return 0;
 }
+
 

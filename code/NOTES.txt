@@ -33,3 +33,24 @@ but like, what buffers need to be updating often vs init?
 
 I stopped reading right around "DirectX Demo Cont..." and "Load Demo Content"
 
+5/9 sunday experimenting:
+
+Q: Can I just set a Z value and have it Z-order my two shapes in front/behind automatically?
+A: No, Setting Z does not automatically tell it the order, it still depends on the draw order.
+
+Q: How do I have my own world coordinates? and have the Vertex buffer convert them?
+First test, setting vertex data outside of [-1,1] range caused the square to take the entire screen
+A: Basically a bunch of matrix math.
+"Coords output by the vertex shader have the projection matrix applied, but not the perspective divide."
+Basically this (in the vertex shader) (variables set up in a constants buffer):
+	output.position = mul(input.position, worldMatrix);
+	output.position = mul(output.position, viewMatrix);
+	output.position = mul(output.position, projectionMatrix);
+
+This questions is actually much more complicated than I thought
+It's not only this matrix math between the Model View Projection (MVP)
+but I think the vertex shader automatically goes from xyzw to xyz by dividing out the w,
+thus finally converting it to normalized device coordinates.
+The w is usually 1, but if it's considered with the projection (camera?) then it's possibly not 1
+(this division is _perspective division_)
+This article was ok. https://jsantell.com/model-view-projection/
