@@ -175,111 +175,9 @@ WinMain(HINSTANCE hInstance,
         }
     }
     
-    // Create D3D11 Device and Context
-    ID3D11Device1* d3d11Device;
-    ID3D11DeviceContext1* d3d11DeviceContext;
-    {
-        ID3D11Device* baseDevice;
-        ID3D11DeviceContext* baseDeviceContext;
-        D3D_FEATURE_LEVEL featureLevels[] = { D3D_FEATURE_LEVEL_11_0 };
-        UINT creationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-#if defined(DEBUG_BUILD)
-        creationFlags |= D3D11_CREATE_DEVICE_DEBUG;
-#endif
-        
-        HRESULT hResult = D3D11CreateDevice(0, D3D_DRIVER_TYPE_HARDWARE, 
-                                            0, creationFlags, 
-                                            featureLevels, ARRAYSIZE(featureLevels), 
-                                            D3D11_SDK_VERSION, &baseDevice, 
-                                            0, &baseDeviceContext);
-        if(FAILED(hResult)){
-            MessageBoxA(0, "D3D11CreateDevice() failed", "Fatal Error", MB_OK);
-            return GetLastError();
-        }
-        
-        // Get 1.1 interface of D3D11 Device and Context
-        hResult = baseDevice->QueryInterface(__uuidof(ID3D11Device1), (void**)&d3d11Device);
-        assert(SUCCEEDED(hResult));
-        baseDevice->Release();
-        
-        hResult = baseDeviceContext->QueryInterface(__uuidof(ID3D11DeviceContext1), (void**)&d3d11DeviceContext);
-        assert(SUCCEEDED(hResult));
-        baseDeviceContext->Release();
-    }
-    
-#ifdef DEBUG_BUILD
-    // Set up debug layer to break on D3D11 errors
-    ID3D11Debug *d3dDebug = nullptr;
-    d3d11Device->QueryInterface(__uuidof(ID3D11Debug), (void**)&d3dDebug);
-    if (d3dDebug)
-    {
-        ID3D11InfoQueue *d3dInfoQueue = nullptr;
-        if (SUCCEEDED(d3dDebug->QueryInterface(__uuidof(ID3D11InfoQueue), (void**)&d3dInfoQueue)))
-        {
-            d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, true);
-            d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, true);
-            d3dInfoQueue->Release();
-        }
-        d3dDebug->Release();
-    }
-#endif
-    
-    // Create Swap Chain
-    IDXGISwapChain1* d3d11SwapChain;
-    {
-        // Get DXGI Factory (needed to create Swap Chain)
-        IDXGIFactory2* dxgiFactory;
-        {
-            IDXGIDevice1* dxgiDevice;
-            HRESULT hResult = d3d11Device->QueryInterface(__uuidof(IDXGIDevice1), (void**)&dxgiDevice);
-            assert(SUCCEEDED(hResult));
-            
-            IDXGIAdapter* dxgiAdapter;
-            hResult = dxgiDevice->GetAdapter(&dxgiAdapter);
-            assert(SUCCEEDED(hResult));
-            dxgiDevice->Release();
-            
-            DXGI_ADAPTER_DESC adapterDesc;
-            dxgiAdapter->GetDesc(&adapterDesc);
-            
-            OutputDebugStringA("Graphics Device: ");
-            OutputDebugStringW(adapterDesc.Description);
-            
-            hResult = dxgiAdapter->GetParent(__uuidof(IDXGIFactory2), (void**)&dxgiFactory);
-            assert(SUCCEEDED(hResult));
-            dxgiAdapter->Release();
-        }
-        
-        DXGI_SWAP_CHAIN_DESC1 d3d11SwapChainDesc = {};
-        d3d11SwapChainDesc.Width = 0; // use window width
-        d3d11SwapChainDesc.Height = 0; // use window height
-        d3d11SwapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
-        d3d11SwapChainDesc.SampleDesc.Count = 1;
-        d3d11SwapChainDesc.SampleDesc.Quality = 0;
-        d3d11SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-        d3d11SwapChainDesc.BufferCount = 2;
-        d3d11SwapChainDesc.Scaling = DXGI_SCALING_STRETCH;
-        d3d11SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-        d3d11SwapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
-        d3d11SwapChainDesc.Flags = 0;
-        
-        HRESULT hResult = dxgiFactory->CreateSwapChainForHwnd(d3d11Device, hwnd, &d3d11SwapChainDesc, 0, 0, &d3d11SwapChain);
-        assert(SUCCEEDED(hResult));
-        
-        dxgiFactory->Release();
-    }
-    
-    // Create Framebuffer Render Target
-    ID3D11RenderTargetView* d3d11FrameBufferView;
-    {
-        ID3D11Texture2D* d3d11FrameBuffer;
-        HRESULT hResult = d3d11SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&d3d11FrameBuffer);
-        assert(SUCCEEDED(hResult));
-        
-        hResult = d3d11Device->CreateRenderTargetView(d3d11FrameBuffer, 0, &d3d11FrameBufferView);
-        assert(SUCCEEDED(hResult));
-        d3d11FrameBuffer->Release();
-    }
+    d3d_state DState = {};
+    InitD3D11(&DState, hwnd);
+    CreateD3D11RenderTargets(&DState);
     
     // Create Vertex Buffer
     ID3D11Buffer* vertexBuffer;
@@ -307,16 +205,19 @@ WinMain(HINSTANCE hInstance,
         
         D3D11_SUBRESOURCE_DATA vertexSubresourceData = { vertexData };
         
-        HRESULT hResult = d3d11Device->CreateBuffer(&vertexBufferDesc, &vertexSubresourceData, &vertexBuffer);
+        HRESULT hResult = DState.Device->CreateBuffer(&vertexBufferDesc, &vertexSubresourceData, &vertexBuffer);
         assert(SUCCEEDED(hResult));
     }
     
     // Create Vertex Buffer
     ID3D11Buffer* StaticVertexBuffer;
-    UINT Static_numVerts;
+    ID3D11Buffer* StaticIndexBuffer;
+    //UINT Static_numVerts;
+    UINT Static_NumIndices;
     UINT Static_stride;
     UINT Static_offset;
     {
+        /*
         float vertexData[] = { // x, y
             -0.75f,  0.5f, // Upper-left
             -0.5f, -0.5f,   // Bottom-Right
@@ -329,6 +230,48 @@ WinMain(HINSTANCE hInstance,
         Static_stride = 2 * sizeof(float);
         Static_numVerts = sizeof(vertexData) / Static_stride;
         Static_offset = 0;
+        */
+        
+        float vertexData[] = 
+        { // x, y
+            -1.0f, -1.0f, // Top-Left             0
+            -0.75f, -1.0f, // Top-Left > right    1
+            -1.0f, -0.75f, // Top-Left > down     2
+            
+            1.0f, -1.0f,  // Top-Right            3
+            0.75f, -1.0f, // Top-Right > left     4
+            1.0f, -0.75f, // Top-right > down     5
+            
+            1.0f, 1.0f, // Bottom-right           6
+            0.75f, 1.0f, // Bottom-right > left   7
+            1.0f, 0.75f, // Bottom-right > up     8
+            
+            -1.0f, 1.0f, // Bottom-left           9
+            -0.75f, 1.0f, // Bottom-left > right 10
+            -1.0f, 0.75f, // bottom-left > up    11
+        };
+        
+        uint16_t indicies[] = 
+        {
+            // Bottom? rectangle
+            0, 3, 5,
+            0, 2, 5,
+            
+            // Left rectangle
+            0, 9, 10,
+            0, 1, 10,
+            
+            // Top? rectangle
+            9, 6, 8,
+            9, 11, 8,
+            
+            // Right rectangle
+            3, 6, 7,
+            3, 4, 7
+        };
+        Static_stride = 2 * sizeof(float);
+        Static_offset = 0;
+        Static_NumIndices = sizeof(indicies) / sizeof(indicies[0]);
         
         D3D11_BUFFER_DESC vertexBufferDesc = {};
         vertexBufferDesc.ByteWidth = sizeof(vertexData);
@@ -337,7 +280,17 @@ WinMain(HINSTANCE hInstance,
         
         D3D11_SUBRESOURCE_DATA vertexSubresourceData = { vertexData };
         
-        HRESULT hResult = d3d11Device->CreateBuffer(&vertexBufferDesc, &vertexSubresourceData, &StaticVertexBuffer);
+        HRESULT hResult = DState.Device->CreateBuffer(&vertexBufferDesc, &vertexSubresourceData, &StaticVertexBuffer);
+        assert(SUCCEEDED(hResult));
+        
+        D3D11_BUFFER_DESC indexBufferDesc = {};
+        indexBufferDesc.ByteWidth = sizeof(indicies);
+        indexBufferDesc.Usage     = D3D11_USAGE_IMMUTABLE;
+        indexBufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+        
+        D3D11_SUBRESOURCE_DATA indexSubresourceData = { indicies };
+        
+        hResult = DState.Device->CreateBuffer(&indexBufferDesc, &indexSubresourceData, &StaticIndexBuffer);
         assert(SUCCEEDED(hResult));
     }
     
@@ -355,7 +308,7 @@ WinMain(HINSTANCE hInstance,
         samplerDesc.BorderColor[3] = 1.0f;
         samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
         
-        d3d11Device->CreateSamplerState(&samplerDesc, &samplerState);
+        DState.Device->CreateSamplerState(&samplerDesc, &samplerState);
     }
     
     // Load Image
@@ -384,9 +337,9 @@ WinMain(HINSTANCE hInstance,
         textureSubresourceData.SysMemPitch = texBytesPerRow;
         
         ID3D11Texture2D* texture;
-        d3d11Device->CreateTexture2D(&textureDesc, &textureSubresourceData, &texture);
+        DState.Device->CreateTexture2D(&textureDesc, &textureSubresourceData, &texture);
         
-        d3d11Device->CreateShaderResourceView(texture, nullptr, &textureView);
+        DState.Device->CreateShaderResourceView(texture, nullptr, &textureView);
         texture->Release();
     }
     
@@ -402,6 +355,13 @@ WinMain(HINSTANCE hInstance,
         float4 color;
     };
     
+    // NOTE(Eric): On Constant Buffers Flags!
+    // "Resist" using D3C11_USAGE_DYNAMIC and D3D11_CPU_ACCESS_WRITE!
+    // (The sample code I've been using uses this)
+    // We can instead use Usage=DEFAULT and CPUAccess=0,
+    // then later use the function DeviceContext->UpdateSubresource
+    // UpdateSubresource requires these flags
+    
     ID3D11Buffer* constantBuffer;
     {
         D3D11_BUFFER_DESC constantBufferDesc = {};
@@ -411,7 +371,7 @@ WinMain(HINSTANCE hInstance,
         constantBufferDesc.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
         constantBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
         
-        HRESULT hResult = d3d11Device->CreateBuffer(&constantBufferDesc, nullptr, &constantBuffer);
+        HRESULT hResult = DState.Device->CreateBuffer(&constantBufferDesc, nullptr, &constantBuffer);
         assert(SUCCEEDED(hResult));
     }
     
@@ -424,7 +384,7 @@ WinMain(HINSTANCE hInstance,
         constantBufferDesc.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
         constantBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
         
-        HRESULT hResult = d3d11Device->CreateBuffer(&constantBufferDesc, nullptr, &MyConstantBuffer);
+        HRESULT hResult = DState.Device->CreateBuffer(&constantBufferDesc, nullptr, &MyConstantBuffer);
         assert(SUCCEEDED(hResult));
     }
 #else
@@ -442,9 +402,28 @@ WinMain(HINSTANCE hInstance,
         constantBufferDesc.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
         constantBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
         
-        HRESULT hResult = d3d11Device->CreateBuffer(&constantBufferDesc, nullptr, &constantBuffer);
+        HRESULT hResult = DState.Device->CreateBuffer(&constantBufferDesc, nullptr, &constantBuffer);
         assert(SUCCEEDED(hResult));
     }
+    
+    struct Constants_Offset
+    {
+        float2 offset;
+    };
+    ID3D11Buffer* constantBuffer_offset;
+    {
+        D3D11_BUFFER_DESC constantBufferDesc = {};
+        // ByteWidth must be a multiple of 16, per the docs
+        constantBufferDesc.ByteWidth      = sizeof(Constants_Offset) + 0xf & 0xfffffff0;
+        constantBufferDesc.Usage          = D3D11_USAGE_DYNAMIC;
+        constantBufferDesc.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
+        constantBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        
+        HRESULT hResult = DState.Device->CreateBuffer(&constantBufferDesc, nullptr, &constantBuffer_offset);
+        assert(SUCCEEDED(hResult));
+    }
+    
+    ID3D11Buffer* ConstantBuffers[] = {constantBuffer, constantBuffer_offset};
     
 #endif
     
@@ -455,8 +434,19 @@ WinMain(HINSTANCE hInstance,
         rasterizerDesc.CullMode = D3D11_CULL_NONE; // Show the texture front and back
         rasterizerDesc.FrontCounterClockwise = FALSE; // Which side to show, if culling
         
-        d3d11Device->CreateRasterizerState(&rasterizerDesc, &rasterizerState);
+        DState.Device->CreateRasterizerState(&rasterizerDesc, &rasterizerState);
     }
+    
+    ID3D11DepthStencilState* depthStencilState;
+    {
+        D3D11_DEPTH_STENCIL_DESC depthStencilDesc = {};
+        depthStencilDesc.DepthEnable    = TRUE;
+        depthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+        depthStencilDesc.DepthFunc      = D3D11_COMPARISON_LESS;
+        
+        DState.Device->CreateDepthStencilState(&depthStencilDesc, &depthStencilState);
+    }
+    
     
     // Camera
     float3 cameraPos = {0, 0, 2};
@@ -481,9 +471,9 @@ WinMain(HINSTANCE hInstance,
     }
     double currentTimeInSeconds = 0.0;
     
-    d3d_state DState = {};
-    DState.Device = d3d11Device;
-    DState.DeviceContext = d3d11DeviceContext;
+    
+    // TODO(Eric): Change these to one function that loads everything.
+    // There really isn't a need to have these separate, I would always want to load all shaders
     InitVertexShaderAndInputLayout(&DState, V_SHADER_TEXTURE, g_ShaderFileFullPath);
     InitPixelShader(&DState, P_SHADER_TEXTURE, g_ShaderFileFullPath);
     
@@ -529,20 +519,14 @@ WinMain(HINSTANCE hInstance,
         
         if(g_WindowDidResize)
         {
-            d3d11DeviceContext->OMSetRenderTargets(0, 0, 0);
-            d3d11FrameBufferView->Release();
+            DState.DeviceContext->OMSetRenderTargets(0, 0, 0);
+            DState.FrameBufferView->Release();
+            DState.DepthBufferView->Release();
             
-            HRESULT res = d3d11SwapChain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
+            HRESULT res = DState.SwapChain->ResizeBuffers(0, 0, 0, DXGI_FORMAT_UNKNOWN, 0);
             assert(SUCCEEDED(res));
             
-            ID3D11Texture2D* d3d11FrameBuffer;
-            res = d3d11SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&d3d11FrameBuffer);
-            assert(SUCCEEDED(res));
-            
-            res = d3d11Device->CreateRenderTargetView(d3d11FrameBuffer, NULL,
-                                                      &d3d11FrameBufferView);
-            assert(SUCCEEDED(res));
-            d3d11FrameBuffer->Release();
+            CreateD3D11RenderTargets(&DState);
             
             perspectiveMat = makePerspectiveMat(windowAspectRatio, degreesToRadians(84), 0.1f, 1000.f);
             
@@ -614,10 +598,10 @@ WinMain(HINSTANCE hInstance,
 #if 0
         // Update constant buffer
         D3D11_MAPPED_SUBRESOURCE mappedSubresourceMat;
-        d3d11DeviceContext->Map(ConstantBufferMat, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubresourceMat);
+        DState.DeviceContext->Map(ConstantBufferMat, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubresourceMat);
         Constants_Mat* constants_mat = (Constants_Mat*)(mappedSubresourceMat.pData);
         constants_mat->modelViewProj = modelViewProj;
-        d3d11DeviceContext->Unmap(ConstantBufferMat, 0);
+        DState.DeviceContext->Unmap(ConstantBufferMat, 0);
         // NOTE(Eric): END NEW CAMERA STUFF
         
         
@@ -639,60 +623,68 @@ WinMain(HINSTANCE hInstance,
         
         // Update constant buffer
         D3D11_MAPPED_SUBRESOURCE mappedSubresource;
-        d3d11DeviceContext->Map(constantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubresource);
+        DState.DeviceContext->Map(constantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubresource);
         Constants* constants = (Constants*)(mappedSubresource.pData);
         constants->pos = playerPos;
         constants->color = playerColor;
-        d3d11DeviceContext->Unmap(constantBuffer, 0);
+        DState.DeviceContext->Unmap(constantBuffer, 0);
 #endif
         // Update constant buffer
         D3D11_MAPPED_SUBRESOURCE mappedSubresource;
-        d3d11DeviceContext->Map(constantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubresource);
+        DState.DeviceContext->Map(constantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubresource);
         Constants* constants = (Constants*)(mappedSubresource.pData);
         constants->modelViewProj = modelViewProj;
-        d3d11DeviceContext->Unmap(constantBuffer, 0);
+        DState.DeviceContext->Unmap(constantBuffer, 0);
         
         
         FLOAT backgroundColor[4] = { 0.1f, 0.2f, 0.6f, 1.0f };
-        d3d11DeviceContext->ClearRenderTargetView(d3d11FrameBufferView, backgroundColor);
+        DState.DeviceContext->ClearRenderTargetView(DState.FrameBufferView, backgroundColor);
         
         
         D3D11_VIEWPORT viewport = { 0.0f, 0.0f, (FLOAT)windowWidth, (FLOAT)windowHeight, 0.0f, 1.0f };
-        d3d11DeviceContext->RSSetViewports(1, &viewport);
         
+        // Rasterizer Stage
+        DState.DeviceContext->RSSetViewports(1, &viewport);
         DState.DeviceContext->RSSetState(rasterizerState);
         
-        d3d11DeviceContext->OMSetRenderTargets(1, &d3d11FrameBufferView, nullptr);
+        // Input Assembler Stage
+        DState.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        DState.DeviceContext->IASetInputLayout(DState.Shaders.InputLayout[V_SHADER_TEXTURE]);
+        DState.DeviceContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
         
-        d3d11DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        d3d11DeviceContext->IASetInputLayout(DState.Shaders.InputLayout[V_SHADER_TEXTURE]);
+        // Vertex Shader Stage
+        DState.DeviceContext->VSSetShader(DState.Shaders.VertexShader[V_SHADER_TEXTURE], nullptr, 0);
+        DState.DeviceContext->VSSetConstantBuffers(0, 2, ConstantBuffers);
         
-        d3d11DeviceContext->VSSetShader(DState.Shaders.VertexShader[V_SHADER_TEXTURE], nullptr, 0);
-        d3d11DeviceContext->PSSetShader(DState.Shaders.PixelShader[P_SHADER_TEXTURE], nullptr, 0);
+        // Pixel Shader Stage
+        DState.DeviceContext->PSSetShader(DState.Shaders.PixelShader[P_SHADER_TEXTURE], nullptr, 0);
+        DState.DeviceContext->PSSetShaderResources(0, 1, &textureView);
+        DState.DeviceContext->PSSetSamplers(0, 1, &samplerState);
         
-        d3d11DeviceContext->PSSetShaderResources(0, 1, &textureView);
-        d3d11DeviceContext->PSSetSamplers(0, 1, &samplerState);
+        // Output Merger Stage
+        DState.DeviceContext->OMSetRenderTargets(1, &DState.FrameBufferView, nullptr);
+        DState.DeviceContext->OMSetDepthStencilState(depthStencilState, 0);
         
-        d3d11DeviceContext->VSSetConstantBuffers(0, 1, &constantBuffer);
-        d3d11DeviceContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
-        d3d11DeviceContext->Draw(numVerts, 0);
+        DState.DeviceContext->Draw(numVerts, 0);
+        
         
         
 #if 1
-        // TODO(Eric): This is only 1 triangle, when it should be two (square)?m
         // NOTE(Eric): TESTING
-        d3d11DeviceContext->VSSetShader(DState.Shaders.VertexShader[V_SHADER_STATIC], nullptr, 0);
-        d3d11DeviceContext->PSSetShader(DState.Shaders.PixelShader[P_SHADER_STATIC], nullptr, 0);
+        DState.DeviceContext->VSSetShader(DState.Shaders.VertexShader[V_SHADER_STATIC], nullptr, 0);
+        DState.DeviceContext->PSSetShader(DState.Shaders.PixelShader[P_SHADER_STATIC], nullptr, 0);
         
-        d3d11DeviceContext->IASetVertexBuffers(0, 1, &StaticVertexBuffer, &Static_stride, &Static_offset);
-        d3d11DeviceContext->Draw(Static_numVerts, 0);
+        DState.DeviceContext->IASetVertexBuffers(0, 1, &StaticVertexBuffer, &Static_stride, &Static_offset);
+        DState.DeviceContext->IASetIndexBuffer(StaticIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+        //DState.DeviceContext->Draw(Static_numVerts, 0);
+        DState.DeviceContext->DrawIndexed(Static_NumIndices, 0, 0);
 #endif
         
         
 #if 0
-        d3d11DeviceContext->VSSetConstantBuffers(0, 1, &constantBuffer);
-        d3d11DeviceContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
-        d3d11DeviceContext->Draw(numVerts, 0);
+        DState.DeviceContext->VSSetConstantBuffers(0, 1, &constantBuffer);
+        DState.DeviceContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
+        DState.DeviceContext->Draw(numVerts, 0);
         
         
         {// NOTE(Eric): The order in which I draw these determines what overlaps the other! interesting!
@@ -711,12 +703,12 @@ WinMain(HINSTANCE hInstance,
             DState.DeviceContext->VSSetConstantBuffers(0, 1, &MyConstantBuffer);
             //DState.DeviceContext->IASetVertexBuffers(0, 1, &MyVertexBuffer, &MyStride, &MyOffset);
             //DState.DeviceContext->Draw(MyNumVerts, 0);
-            d3d11DeviceContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
-            d3d11DeviceContext->Draw(numVerts, 0);
+            DState.DeviceContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
+            DState.DeviceContext->Draw(numVerts, 0);
         }
 #endif
         
-        d3d11SwapChain->Present(1, 0);
+        DState.SwapChain->Present(1, 0);
     }
     
     return 0;

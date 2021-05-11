@@ -4,7 +4,7 @@
 
 #define _USE_MATH_DEFINES
 #include <math.h>
-
+#include <stdint.h>
 
 // NOTE(Eric): Remember! Code something FIRST, then compress and pull things out.
 

@@ -33,6 +33,9 @@ struct d3d_state
     
     IDXGISwapChain1* SwapChain;
     
+    ID3D11RenderTargetView* FrameBufferView;
+    ID3D11DepthStencilView* DepthBufferView;
+    
     d3d_shaders Shaders;
 };
 

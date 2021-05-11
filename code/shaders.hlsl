@@ -18,6 +18,11 @@ cbuffer constants : register(b0)
     float4x4 modelViewProj;
 };
 
+cbuffer constants_offset : register(b1)
+{
+    float2 offset;
+};
+
 
 struct VS_Input
 {
@@ -39,7 +44,7 @@ VS_Output vs_main(VS_Input input)
 {
     VS_Output output;
     // Remember, Adding an offset here from constants gets you to move things
-	output.pos = mul(float4(input.pos, 0.0f, 1.0f), modelViewProj);
+	output.pos = mul(float4(input.pos + offset, 0.0f, 1.0f), modelViewProj);
 	output.uv = input.uv;
 
 	//output.color = uniformColor;

@@ -54,3 +54,26 @@ thus finally converting it to normalized device coordinates.
 The w is usually 1, but if it's considered with the projection (camera?) then it's possibly not 1
 (this division is _perspective division_)
 This article was ok. https://jsantell.com/model-view-projection/
+
+
+5/10 finished reading the intro to dx11
+My question from yesterday about the Z-ordering of rendering stuff..
+Depth is handled by a DepthStencil buffer, which currently in our project is not set up
+This sets up how things that are further away are not rendered in front of things that are closer.
+
+Q: The IndexBuffer I was a little confused about, because our sample doesn't use one
+It is optional, but what was it used for?
+A: It's used to "render primitives more efficiently".
+The numbers are the INDEXs into the vertex buffer.
+So I believe if it says {0, 1, 2, ...}, it means that the first point on the primitive is those 3 vertexes (the first triangle)
+Then you use DrawIndexed passing in the indexes! (instead of Draw)
+
+
+I feel like I should have something like this:
+Work in my own coordinates, obviously. That is basically a need
+Then have a draw call that:
+Updates a constant buffer with an offset calculated from my world pos
+And I always use the offset to position things,
+the vertex data will always be the same (square)
+probably also need a scale too
+

@@ -15,6 +15,7 @@ version(1);
                       "*.sh",
                       "*.4coder",
                       "*.txt",
+					  "*.hlsl",
                   };
                   
                   blacklist_patterns =

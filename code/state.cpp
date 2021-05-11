@@ -3,10 +3,141 @@
 
 // TODO(Eric): Don't be afraid of deleting all this.
 
+internal void
+CreateD3D11RenderTargets(d3d_state *DState)
+{
+    // Create Framebuffer Render Target and DepthStencilView
+    {
+        ID3D11Texture2D* d3d11FrameBuffer;
+        HRESULT hResult = DState->SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&d3d11FrameBuffer);
+        assert(SUCCEEDED(hResult));
+        
+        hResult = DState->Device->CreateRenderTargetView(d3d11FrameBuffer, 0, &DState->FrameBufferView);
+        assert(SUCCEEDED(hResult));
+        
+        D3D11_TEXTURE2D_DESC depthBufferDesc;
+        d3d11FrameBuffer->GetDesc(&depthBufferDesc);
+        
+        d3d11FrameBuffer->Release();
+        
+        depthBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        depthBufferDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+        
+        ID3D11Texture2D* depthBuffer;
+        DState->Device->CreateTexture2D(&depthBufferDesc, nullptr, &depthBuffer);
+        
+        DState->Device->CreateDepthStencilView(depthBuffer, nullptr, &DState->DepthBufferView);
+        
+        depthBuffer->Release();
+    }
+    
+}
+
+internal void
+InitD3D11(d3d_state *DState, HWND hwnd)
+{
+    // Create D3D11 Device and Context
+    {
+        ID3D11Device* baseDevice;
+        ID3D11DeviceContext* baseDeviceContext;
+        D3D_FEATURE_LEVEL featureLevels[] = { D3D_FEATURE_LEVEL_11_0 };
+        UINT creationFlags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
+#if defined(DEBUG_BUILD)
+        creationFlags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+        
+        HRESULT hResult = D3D11CreateDevice(0, D3D_DRIVER_TYPE_HARDWARE, 
+                                            0, creationFlags, 
+                                            featureLevels, ARRAYSIZE(featureLevels), 
+                                            D3D11_SDK_VERSION, &baseDevice, 
+                                            0, &baseDeviceContext);
+        if(FAILED(hResult)){
+            MessageBoxA(0, "D3D11CreateDevice() failed", "Fatal Error", MB_OK);
+            assert(0);
+        }
+        
+        // Get 1.1 interface of D3D11 Device and Context
+        hResult = baseDevice->QueryInterface(__uuidof(ID3D11Device1), (void**)&DState->Device);
+        assert(SUCCEEDED(hResult));
+        baseDevice->Release();
+        
+        hResult = baseDeviceContext->QueryInterface(__uuidof(ID3D11DeviceContext1), (void**)&DState->DeviceContext);
+        assert(SUCCEEDED(hResult));
+        baseDeviceContext->Release();
+    }
+    
+#ifdef DEBUG_BUILD
+    // Set up debug layer to break on D3D11 errors
+    ID3D11Debug *d3dDebug = nullptr;
+    DState->Device->QueryInterface(__uuidof(ID3D11Debug), (void**)&d3dDebug);
+    if (d3dDebug)
+    {
+        ID3D11InfoQueue *d3dInfoQueue = nullptr;
+        if (SUCCEEDED(d3dDebug->QueryInterface(__uuidof(ID3D11InfoQueue), (void**)&d3dInfoQueue)))
+        {
+            d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_CORRUPTION, true);
+            d3dInfoQueue->SetBreakOnSeverity(D3D11_MESSAGE_SEVERITY_ERROR, true);
+            d3dInfoQueue->Release();
+        }
+        d3dDebug->Release();
+    }
+#endif
+    
+    // Create Swap Chain
+    {
+        // Get DXGI Factory (needed to create Swap Chain)
+        IDXGIFactory2* dxgiFactory;
+        {
+            IDXGIDevice1* dxgiDevice;
+            HRESULT hResult = DState->Device->QueryInterface(__uuidof(IDXGIDevice1), (void**)&dxgiDevice);
+            assert(SUCCEEDED(hResult));
+            
+            IDXGIAdapter* dxgiAdapter;
+            hResult = dxgiDevice->GetAdapter(&dxgiAdapter);
+            assert(SUCCEEDED(hResult));
+            dxgiDevice->Release();
+            
+            DXGI_ADAPTER_DESC adapterDesc;
+            dxgiAdapter->GetDesc(&adapterDesc);
+            
+            OutputDebugStringA("Graphics Device: ");
+            OutputDebugStringW(adapterDesc.Description);
+            
+            hResult = dxgiAdapter->GetParent(__uuidof(IDXGIFactory2), (void**)&dxgiFactory);
+            assert(SUCCEEDED(hResult));
+            dxgiAdapter->Release();
+        }
+        
+        DXGI_SWAP_CHAIN_DESC1 d3d11SwapChainDesc = {};
+        d3d11SwapChainDesc.Width = 0; // use window width
+        d3d11SwapChainDesc.Height = 0; // use window height
+        d3d11SwapChainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+        d3d11SwapChainDesc.SampleDesc.Count = 1;
+        d3d11SwapChainDesc.SampleDesc.Quality = 0;
+        d3d11SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+        d3d11SwapChainDesc.BufferCount = 2;
+        d3d11SwapChainDesc.Scaling = DXGI_SCALING_STRETCH;
+        d3d11SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+        d3d11SwapChainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
+        d3d11SwapChainDesc.Flags = 0;
+        
+        HRESULT hResult = dxgiFactory->CreateSwapChainForHwnd(DState->Device, hwnd, &d3d11SwapChainDesc, 0, 0, &DState->SwapChain);
+        assert(SUCCEEDED(hResult));
+        
+        dxgiFactory->Release();
+    }
+}
 
 internal void
 InitVertexShaderAndInputLayout(d3d_state *DState, V_SHADER Type, LPCWSTR ShaderFilePath)
 {
+    // NOTE(Eric): There are 3 ways to Load shaders into our program
+    // 1: Load the shader file and compile it at runtime (as we are doing here)
+    // 2: Load a precompiled object .cso file, using ReadFileToBlob, and then Create
+    // 3: Load from a byte array. Using fxc.exe to compile to a header file, 
+    //    and creating a global array variable to access it.
+    // Option 3 is the most portable (and we might be able to do it in our build.bat
+    
     // Create Vertex Shader
     ID3DBlob* vsBlob;
     ID3DBlob* shaderCompileErrorsBlob;
