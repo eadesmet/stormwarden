@@ -77,3 +77,12 @@ And I always use the offset to position things,
 the vertex data will always be the same (square)
 probably also need a scale too
 
+5/11
+started with what i mentioned yesterday, passing in some offset and getting that to render
+but, needed some math:
+ummm, so I started diving into some math
+https://www.youtube.com/watch?v=bVYrd28ca_w&list=PLW3Zl3wyJwWMpFSRpeMmSBGDShbkiV1Cq&index=7
+
+the scale thing I was trying to figure out is just a matrix multiply
+so need to somehow figure that out with 2d????
+

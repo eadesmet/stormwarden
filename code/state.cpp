@@ -142,7 +142,13 @@ InitVertexShaderAndInputLayout(d3d_state *DState, V_SHADER Type, LPCWSTR ShaderF
     ID3DBlob* vsBlob;
     ID3DBlob* shaderCompileErrorsBlob;
     
-    HRESULT hResult = D3DCompileFromFile(ShaderFilePath, nullptr, nullptr, "vs_main", "vs_5_0", 0, 0, &vsBlob, &shaderCompileErrorsBlob);
+    UINT CompileFlags = 0;
+#if defined(DEBUG_BUILD)
+    CompileFlags |= D3DCOMPILE_DEBUG;
+    CompileFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+    
+    HRESULT hResult = D3DCompileFromFile(ShaderFilePath, nullptr, nullptr, "vs_main", "vs_5_0", CompileFlags, 0, &vsBlob, &shaderCompileErrorsBlob);
     if(FAILED(hResult))
     {
         const char* errorString = NULL;

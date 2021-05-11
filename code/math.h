@@ -8,6 +8,8 @@
 
 // NOTE(Eric): Remember! Code something FIRST, then compress and pull things out.
 
+// TODO(Eric): Normal of a triangle: (B-A) CROSSPROD (C-A) = Normal (not unit length)
+
 
 struct float2
 {

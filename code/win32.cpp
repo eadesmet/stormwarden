@@ -217,57 +217,28 @@ WinMain(HINSTANCE hInstance,
     UINT Static_stride;
     UINT Static_offset;
     {
-        /*
-        float vertexData[] = { // x, y
-            -0.75f,  0.5f, // Upper-left
-            -0.5f, -0.5f,   // Bottom-Right
-            -0.75f, -0.5f, // Bottom-Left
-            
-            -0.75f,  0.5f, // Upper-left
-            -0.5f,  0.5f,   // Upper-right
-            -0.5f, -0.5f    // Bottom-right
-        };
-        Static_stride = 2 * sizeof(float);
-        Static_numVerts = sizeof(vertexData) / Static_stride;
-        Static_offset = 0;
-        */
-        
         float vertexData[] = 
         { // x, y
-            -1.0f, -1.0f, // Top-Left             0
-            -0.75f, -1.0f, // Top-Left > right    1
-            -1.0f, -0.75f, // Top-Left > down     2
+            /*
+            -0.5f, -0.5f, // 0
             
-            1.0f, -1.0f,  // Top-Right            3
-            0.75f, -1.0f, // Top-Right > left     4
-            1.0f, -0.75f, // Top-right > down     5
+            -0.5f,  0.5f, // 1
+            0.5f, -0.5f,  // 2
             
-            1.0f, 1.0f, // Bottom-right           6
-            0.75f, 1.0f, // Bottom-right > left   7
-            1.0f, 0.75f, // Bottom-right > up     8
+            0.5f, 0.5f,  // 3
+*/
             
-            -1.0f, 1.0f, // Bottom-left           9
-            -0.75f, 1.0f, // Bottom-left > right 10
-            -1.0f, 0.75f, // bottom-left > up    11
+            20.0f, 20.0f,
+            20.0f, 50.0f,
+            50.0f, 20.0f,
+            50.0f, 50.0f
+                
         };
         
         uint16_t indicies[] = 
         {
-            // Bottom? rectangle
-            0, 3, 5,
-            0, 2, 5,
-            
-            // Left rectangle
-            0, 9, 10,
-            0, 1, 10,
-            
-            // Top? rectangle
-            9, 6, 8,
-            9, 11, 8,
-            
-            // Right rectangle
-            3, 6, 7,
-            3, 4, 7
+            0, 1, 3,
+            0, 2, 3,
         };
         Static_stride = 2 * sizeof(float);
         Static_offset = 0;
@@ -345,16 +316,6 @@ WinMain(HINSTANCE hInstance,
     
     free(testTextureBytes);
     
-#if 0
-    // Create Constant Buffer
-    struct Constants
-    {
-        float2 pos;
-        //float2 paddingUnused; // color (below) needs to be 16-byte aligned! 
-        float2 uv; // NOTE(Eric): I could do this here, but would uv ever need to be passed in?
-        float4 color;
-    };
-    
     // NOTE(Eric): On Constant Buffers Flags!
     // "Resist" using D3C11_USAGE_DYNAMIC and D3D11_CPU_ACCESS_WRITE!
     // (The sample code I've been using uses this)
@@ -362,32 +323,7 @@ WinMain(HINSTANCE hInstance,
     // then later use the function DeviceContext->UpdateSubresource
     // UpdateSubresource requires these flags
     
-    ID3D11Buffer* constantBuffer;
-    {
-        D3D11_BUFFER_DESC constantBufferDesc = {};
-        // ByteWidth must be a multiple of 16, per the docs
-        constantBufferDesc.ByteWidth      = sizeof(Constants) + 0xf & 0xfffffff0;
-        constantBufferDesc.Usage          = D3D11_USAGE_DYNAMIC;
-        constantBufferDesc.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
-        constantBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        
-        HRESULT hResult = DState.Device->CreateBuffer(&constantBufferDesc, nullptr, &constantBuffer);
-        assert(SUCCEEDED(hResult));
-    }
     
-    ID3D11Buffer* MyConstantBuffer;
-    {
-        D3D11_BUFFER_DESC constantBufferDesc = {};
-        // ByteWidth must be a multiple of 16, per the docs
-        constantBufferDesc.ByteWidth      = sizeof(Constants) + 0xf & 0xfffffff0;
-        constantBufferDesc.Usage          = D3D11_USAGE_DYNAMIC;
-        constantBufferDesc.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
-        constantBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-        
-        HRESULT hResult = DState.Device->CreateBuffer(&constantBufferDesc, nullptr, &MyConstantBuffer);
-        assert(SUCCEEDED(hResult));
-    }
-#else
     struct Constants
     {
         float4x4 modelViewProj;
@@ -409,6 +345,8 @@ WinMain(HINSTANCE hInstance,
     struct Constants_Offset
     {
         float2 offset;
+        float2 scale;
+        float4 color;
     };
     ID3D11Buffer* constantBuffer_offset;
     {
@@ -423,9 +361,21 @@ WinMain(HINSTANCE hInstance,
         assert(SUCCEEDED(hResult));
     }
     
-    ID3D11Buffer* ConstantBuffers[] = {constantBuffer, constantBuffer_offset};
+    ID3D11Buffer* Ortho_CBuffer;
+    {
+        D3D11_BUFFER_DESC constantBufferDesc = {};
+        // ByteWidth must be a multiple of 16, per the docs
+        constantBufferDesc.ByteWidth      = sizeof(Constants) + 0xf & 0xfffffff0;
+        constantBufferDesc.Usage          = D3D11_USAGE_DYNAMIC;
+        constantBufferDesc.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
+        constantBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+        
+        HRESULT hResult = DState.Device->CreateBuffer(&constantBufferDesc, nullptr, &constantBuffer_offset);
+        assert(SUCCEEDED(hResult));
+    }
     
-#endif
+    ID3D11Buffer* ConstantBuffers[] = {constantBuffer, constantBuffer_offset, Ortho_CBuffer};
+    
     
     ID3D11RasterizerState* rasterizerState;
     {
@@ -595,40 +545,6 @@ WinMain(HINSTANCE hInstance,
         // Calculate model-view-projection matrix to send to shader
         float4x4 modelViewProj = modelMat * viewMat * perspectiveMat;
         
-#if 0
-        // Update constant buffer
-        D3D11_MAPPED_SUBRESOURCE mappedSubresourceMat;
-        DState.DeviceContext->Map(ConstantBufferMat, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubresourceMat);
-        Constants_Mat* constants_mat = (Constants_Mat*)(mappedSubresourceMat.pData);
-        constants_mat->modelViewProj = modelViewProj;
-        DState.DeviceContext->Unmap(ConstantBufferMat, 0);
-        // NOTE(Eric): END NEW CAMERA STUFF
-        
-        
-        // Modulate player's y-position
-        float2 playerPos = {};
-        const float posCycleAmplitude = 0.5f;
-        const float posCyclePeriod = 3.f; // in seconds
-        const float posCycleFreq = 2 * M_PI / posCyclePeriod;
-        playerPos.y = posCycleAmplitude * sinf(posCycleFreq * (float)currentTimeInSeconds);
-        
-        // Cycle player color
-        float4 playerColor;
-        const float colorCyclePeriod = 5.f; //in seconds
-        const float colorCycleFreq = 2 * M_PI / colorCyclePeriod;
-        playerColor.x = 0.5f * (sinf(colorCycleFreq * (float)currentTimeInSeconds) + 1);
-        playerColor.y = 1 - playerColor.x;
-        playerColor.z = 0.f;
-        playerColor.w = 1.f;
-        
-        // Update constant buffer
-        D3D11_MAPPED_SUBRESOURCE mappedSubresource;
-        DState.DeviceContext->Map(constantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubresource);
-        Constants* constants = (Constants*)(mappedSubresource.pData);
-        constants->pos = playerPos;
-        constants->color = playerColor;
-        DState.DeviceContext->Unmap(constantBuffer, 0);
-#endif
         // Update constant buffer
         D3D11_MAPPED_SUBRESOURCE mappedSubresource;
         DState.DeviceContext->Map(constantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubresource);
@@ -654,7 +570,8 @@ WinMain(HINSTANCE hInstance,
         
         // Vertex Shader Stage
         DState.DeviceContext->VSSetShader(DState.Shaders.VertexShader[V_SHADER_TEXTURE], nullptr, 0);
-        DState.DeviceContext->VSSetConstantBuffers(0, 2, ConstantBuffers);
+        //DState.DeviceContext->VSSetConstantBuffers(0, 2, ConstantBuffers);
+        DState.DeviceContext->VSSetConstantBuffers(0, 1, &ConstantBuffers[0]);
         
         // Pixel Shader Stage
         DState.DeviceContext->PSSetShader(DState.Shaders.PixelShader[P_SHADER_TEXTURE], nullptr, 0);
@@ -669,44 +586,67 @@ WinMain(HINSTANCE hInstance,
         
         
         
-#if 1
-        // NOTE(Eric): TESTING
+        
+        
+        
+        DState.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        DState.DeviceContext->IASetInputLayout(DState.Shaders.InputLayout[V_SHADER_STATIC]);
+        DState.DeviceContext->IASetVertexBuffers(0, 1, &StaticVertexBuffer, &Static_stride, &Static_offset);
+        DState.DeviceContext->IASetIndexBuffer(StaticIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+        
         DState.DeviceContext->VSSetShader(DState.Shaders.VertexShader[V_SHADER_STATIC], nullptr, 0);
         DState.DeviceContext->PSSetShader(DState.Shaders.PixelShader[P_SHADER_STATIC], nullptr, 0);
         
-        DState.DeviceContext->IASetVertexBuffers(0, 1, &StaticVertexBuffer, &Static_stride, &Static_offset);
-        DState.DeviceContext->IASetIndexBuffer(StaticIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+        
         //DState.DeviceContext->Draw(Static_numVerts, 0);
-        DState.DeviceContext->DrawIndexed(Static_NumIndices, 0, 0);
-#endif
+        //DState.DeviceContext->DrawIndexed(Static_NumIndices, 0, 0);
         
         
-#if 0
-        DState.DeviceContext->VSSetConstantBuffers(0, 1, &constantBuffer);
-        DState.DeviceContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
-        DState.DeviceContext->Draw(numVerts, 0);
+        // Clear the Offsets so they don't get continuously incremented:
+        // Update constant buffer
+        D3D11_MAPPED_SUBRESOURCE Offset_mappedSubresource;
+        DState.DeviceContext->Map(ConstantBuffers[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &Offset_mappedSubresource);
+        Constants_Offset* o_constants = (Constants_Offset*)(Offset_mappedSubresource.pData);
+        o_constants->offset = {0.0f, 0.0f};
+        o_constants->scale = {0.0f,0.0f};
+        o_constants->color = {0.0f, 1.0f, 0.0f, 1.0f};
+        DState.DeviceContext->Unmap(ConstantBuffers[1], 0);
+        
+        // Set the Orthographic Matrix constant (trying this instead of the scale thing)
+        D3D11_MAPPED_SUBRESOURCE Ortho_mappedSubresource;
+        DState.DeviceContext->Map(ConstantBuffers[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &Ortho_mappedSubresource);
+        Constants* Ortho_constants = (Constants*)(Ortho_mappedSubresource.pData);
+        Ortho_constants->modelViewProj = ;
+        
+        DState.DeviceContext->Unmap(ConstantBuffers[2], 0);
         
         
-        {// NOTE(Eric): The order in which I draw these determines what overlaps the other! interesting!
-            // I wonder if setting a Z value will handle that? Something to test out!
-            // See, it's things like _this_ that will keep the project going.
-            // Just _do_ things, and see what you figure out! it's fun! please be fun!
-            
-            // Update constant buffer
-            D3D11_MAPPED_SUBRESOURCE MyMappedSubresource;
-            DState.DeviceContext->Map(MyConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &MyMappedSubresource);
-            Constants* MyConstants = (Constants*)(MyMappedSubresource.pData);
-            MyConstants->pos = {-0.5f, 0.0f};
-            MyConstants->color = {0.2f, 0.8f, 0.4f, 1.0f};
-            DState.DeviceContext->Unmap(MyConstantBuffer, 0);
-            
-            DState.DeviceContext->VSSetConstantBuffers(0, 1, &MyConstantBuffer);
-            //DState.DeviceContext->IASetVertexBuffers(0, 1, &MyVertexBuffer, &MyStride, &MyOffset);
-            //DState.DeviceContext->Draw(MyNumVerts, 0);
-            DState.DeviceContext->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
-            DState.DeviceContext->Draw(numVerts, 0);
+        
+        DState.DeviceContext->VSSetConstantBuffers(0, 1, &ConstantBuffers[1]);
+        for (int i=0;i<10;i++)
+        {
+            for (int j=0;j<10;j++)
+            {
+                
+                // Update constant buffer
+                Offset_mappedSubresource;
+                DState.DeviceContext->Map(ConstantBuffers[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &Offset_mappedSubresource);
+                o_constants = (Constants_Offset*)(Offset_mappedSubresource.pData);
+                o_constants->offset = {(float)i*1.1f,(float)j*1.1f};
+                o_constants->scale = {50.0f,0.1f};//{1.0f,1.0f};//{0.2f,0.2f};
+                o_constants->color = {0.9f, (float)i/10, (float)j/10, 0.2f};//{0.9f,0.2f,0.2f,0.2f};
+                DState.DeviceContext->Unmap(ConstantBuffers[1], 0);
+                
+                
+                
+                
+                DState.DeviceContext->DrawIndexed(Static_NumIndices, 0, 0);
+            }
         }
-#endif
+        
+        
+        
+        
         
         DState.SwapChain->Present(1, 0);
     }
@@ -715,3 +655,52 @@ WinMain(HINSTANCE hInstance,
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#if 0
+// Update constant buffer
+D3D11_MAPPED_SUBRESOURCE mappedSubresourceMat;
+DState.DeviceContext->Map(ConstantBufferMat, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubresourceMat);
+Constants_Mat* constants_mat = (Constants_Mat*)(mappedSubresourceMat.pData);
+constants_mat->modelViewProj = modelViewProj;
+DState.DeviceContext->Unmap(ConstantBufferMat, 0);
+// NOTE(Eric): END NEW CAMERA STUFF
+
+
+// Modulate player's y-position
+float2 playerPos = {};
+const float posCycleAmplitude = 0.5f;
+const float posCyclePeriod = 3.f; // in seconds
+const float posCycleFreq = 2 * M_PI / posCyclePeriod;
+playerPos.y = posCycleAmplitude * sinf(posCycleFreq * (float)currentTimeInSeconds);
+
+// Cycle player color
+float4 playerColor;
+const float colorCyclePeriod = 5.f; //in seconds
+const float colorCycleFreq = 2 * M_PI / colorCyclePeriod;
+playerColor.x = 0.5f * (sinf(colorCycleFreq * (float)currentTimeInSeconds) + 1);
+playerColor.y = 1 - playerColor.x;
+playerColor.z = 0.f;
+playerColor.w = 1.f;
+
+// Update constant buffer
+D3D11_MAPPED_SUBRESOURCE mappedSubresource;
+DState.DeviceContext->Map(constantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubresource);
+Constants* constants = (Constants*)(mappedSubresource.pData);
+constants->pos = playerPos;
+constants->color = playerColor;
+DState.DeviceContext->Unmap(constantBuffer, 0);
+#endif

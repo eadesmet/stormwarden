@@ -1,4 +1,16 @@
 
+cbuffer constants : register(b0)
+{
+    float2 offset;
+	float2 scale;
+    float4 uniformColor;
+};
+
+cbuffer constants : register(b0)
+{
+    float4x4 OrthographicMatrix;
+};
+
 
 struct VS_Input
 {
@@ -8,17 +20,26 @@ struct VS_Input
 struct VS_Output 
 {
     float4 pos   : SV_POSITION;
+	float4 color : COLOR;
 };
 
 
 VS_Output vs_main(VS_Input input)
 {
 	VS_Output Result;
-	Result.pos = float4(input.pos, 0.0f, 1.0f);
+	float2 newpos = input.pos + offset;
+	//Result.pos = float4(mul(newpos, scale.x), 0.0f, 1.0f);
+	
+	Result.pos = float4(((newpos / scale.x) * 2) - 1, 0.0f, 1.0f);
+
+	//Result.pos = float4(input.pos, 0.0f, 1.0f);
+	Result.color = uniformColor;
 	return Result;
 }
 
 float4 ps_main(VS_Output input) : SV_Target
 {
-	return float4(0.6f, 0.2f, 0.2f, 1.0f);
+	// Do I have access to constants in pixel shader?
+	//return float4(0.6f, 0.2f, 0.2f, 1.0f);
+	return input.color;
 }

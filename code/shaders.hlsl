@@ -40,6 +40,9 @@ struct VS_Output
 Texture2D    mytexture : register(t0);
 SamplerState mysampler : register(s0);
 
+// NOTE(Eric): If I pass in a position with 4 components,
+// the hardware will automatically divide x,y,z by the w!
+
 VS_Output vs_main(VS_Input input)
 {
     VS_Output output;
