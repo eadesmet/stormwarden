@@ -86,3 +86,29 @@ https://www.youtube.com/watch?v=bVYrd28ca_w&list=PLW3Zl3wyJwWMpFSRpeMmSBGDShbkiV
 the scale thing I was trying to figure out is just a matrix multiply
 so need to somehow figure that out with 2d????
 
+
+
+was looking at this a little bit
+https://www.enkisoftware.com/devlogpost-20200202-1-Runtime-Compiled-C++-Dear-ImGui-and-DirectX11-Tutorial
+https://github.com/dougbinks/RCCpp_DX11_Example
+
+good answer on history of opengl vs dx
+https://softwareengineering.stackexchange.com/questions/60544/why-do-game-developers-prefer-windows/88055#88055
+
+
+
+5/13
+Alright, so back to the beginning.
+I want to have 1 vertex buffer for a square, and to draw many of them with a simple offset
+
+I also want to figure out how I can use my own world coordinates and have a conversion
+
+
+
+ALLLLLLright..
+Discovered ryan's app_template project, and man is it cleaaaaaan.
+Moving my attention to that now.
+One thing though: It sets up opengl, when I've just spent 2 weeks learning directx11
+So the first task will be to set up d3d11, i think.
+just going to try to mimic what he did with opengl and hope it works.
+

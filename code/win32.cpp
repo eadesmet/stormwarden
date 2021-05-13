@@ -226,7 +226,7 @@ WinMain(HINSTANCE hInstance,
             0.5f, -0.5f,  // 2
             
             0.5f, 0.5f,  // 3
-*/
+            */
             
             20.0f, 20.0f,
             20.0f, 50.0f,
@@ -370,7 +370,7 @@ WinMain(HINSTANCE hInstance,
         constantBufferDesc.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
         constantBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
         
-        HRESULT hResult = DState.Device->CreateBuffer(&constantBufferDesc, nullptr, &constantBuffer_offset);
+        HRESULT hResult = DState.Device->CreateBuffer(&constantBufferDesc, nullptr, &Ortho_CBuffer);
         assert(SUCCEEDED(hResult));
     }
     
@@ -608,15 +608,15 @@ WinMain(HINSTANCE hInstance,
         DState.DeviceContext->Map(ConstantBuffers[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &Offset_mappedSubresource);
         Constants_Offset* o_constants = (Constants_Offset*)(Offset_mappedSubresource.pData);
         o_constants->offset = {0.0f, 0.0f};
-        o_constants->scale = {0.0f,0.0f};
+        o_constants->scale = {(float)SCREEN_WIDTH, (float)SCREEN_HEIGHT};
         o_constants->color = {0.0f, 1.0f, 0.0f, 1.0f};
         DState.DeviceContext->Unmap(ConstantBuffers[1], 0);
         
         // Set the Orthographic Matrix constant (trying this instead of the scale thing)
         D3D11_MAPPED_SUBRESOURCE Ortho_mappedSubresource;
-        DState.DeviceContext->Map(ConstantBuffers[1], 0, D3D11_MAP_WRITE_DISCARD, 0, &Ortho_mappedSubresource);
+        DState.DeviceContext->Map(ConstantBuffers[2], 0, D3D11_MAP_WRITE_DISCARD, 0, &Ortho_mappedSubresource);
         Constants* Ortho_constants = (Constants*)(Ortho_mappedSubresource.pData);
-        Ortho_constants->modelViewProj = ;
+        Ortho_constants->modelViewProj = modelViewProj;
         
         DState.DeviceContext->Unmap(ConstantBuffers[2], 0);
         
