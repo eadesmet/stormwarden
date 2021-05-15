@@ -23,7 +23,6 @@
 #include "strings.h"
 #include "os.h"
 #include "win32_timer.h"
-#include "win32_directx.h" // NOTE(Eric): Not sure where to put this include
 #include "language_layer.c"
 #include "memory.c"
 #include "strings.c"
@@ -36,7 +35,6 @@ global char global_working_directory[256];
 global char global_app_dll_path[256];
 global char global_temp_app_dll_path[256];
 global OS_State global_os;
-global DX_State g_dx_state;
 global HDC global_device_context;
 global HINSTANCE global_instance_handle;
 global W32_Timer global_win32_timer = {0};
@@ -62,7 +60,6 @@ W32_GamepadInput global_gamepads[W32_MAX_GAMEPADS];
 #include "win32_xinput.c"
 #include "win32_wasapi.c"
 #include "win32_opengl.c"
-#include "win32_directx.cpp"
 
 //~
 
@@ -224,6 +221,9 @@ W32_WindowProc(HWND window_handle, UINT message, WPARAM w_param, LPARAM l_param)
             if(vkey_code == VK_ESCAPE)
             {
                 key_input = Key_Esc;
+                
+                // TODO(Eric): I don't know where to put events. Input isn't passed to app?
+                global_os.quit = 1;
             }
             else if(vkey_code >= VK_F1 && vkey_code <= VK_F12)
             {
@@ -546,13 +546,6 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR lp_cmd_line, int n_sh
             W32_OutputError("Fatal Error", "OpenGL initialization failure.");
             goto quit;
         }
-    }
-    
-    // NOTE(Eric): DirectX initialization
-    {
-        // TODO(Eric): Init g_dx_state to 0 first?
-        global_device_context = GetDC(window_handle);
-        InitD3D11(&g_dx_state, window_handle);
     }
     
     W32_LoadXInput();

@@ -1,11 +1,12 @@
 @echo off
 
+REM set d3d_libs=d3d11.lib d3dcompiler.lib dxguid.lib dxgi.lib
+
 set application_name=app
 set build_options= -DBUILD_WIN32=1
 set compile_flags= -nologo /Zi /FC /I ../source/
 set common_link_flags= opengl32.lib -opt:ref -incremental:no /Debug:fastlink
-set d3d_libs=d3d11.lib d3dcompiler.lib dxguid.lib dxgi.lib
-set platform_link_flags= gdi32.lib user32.lib winmm.lib %d3d_libs% %common_link_flags%
+set platform_link_flags= gdi32.lib user32.lib winmm.lib %common_link_flags%
 
 if not exist build mkdir build
 pushd build

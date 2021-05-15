@@ -11,6 +11,8 @@
 // That seems easy enough, and I get the best of all worlds, right?
 // OR, just convert the app.dll to be cpp, and use directx there????
 
+//// NOTE(Eric): The next day: just going back to opengl for now.
+/*
 #if 1
 
 #ifdef __cplusplus
@@ -178,7 +180,7 @@ InitD3D11(DX_State *State, HWND hwnd)
         // Get DXGI Factory (needed to create Swap Chain)
         IDXGIFactory2* dxgiFactory;
         {
-            /*
+            
             IDXGIDevice1* dxgiDevice;
             HRESULT hResult = IDXGIDevice_QueryInterface(dxgiDevice, IID_IDXGIDevice1, (void**)&dxgiDevice);
             Assert(SUCCEEDED(hResult));
@@ -197,7 +199,7 @@ InitD3D11(DX_State *State, HWND hwnd)
             hResult = IDXGIAdapter_GetParent(dxgiAdapter, IID_IDXGIFactory2, (void**)&dxgiFactory);
             Assert(SUCCEEDED(hResult));
             IDXGIAdapter_Release(dxgiAdapter);
-*/
+
             HRESULT hresult = CreateDXGIFactory2(0, &IID_IDXGIFactory2,
                                                  &dxgiFactory);
         }
@@ -225,3 +227,5 @@ InitD3D11(DX_State *State, HWND hwnd)
     
 }
 #endif
+
+*/
