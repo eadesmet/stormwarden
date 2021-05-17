@@ -5,26 +5,26 @@ struct GL_State
     GLuint vShader;
     GLuint fShader;
     GLuint theProgram;
-    GLuint positionBufferObject;
+    GLuint vertexBufferObject;
     GLuint vao;
     
 };
 
-
-const float vertexPositions[] = {
-	0.75f, 0.75f, 0.0f, 1.0f,
-	0.75f, -0.75f, 0.0f, 1.0f,
-	-0.75f, -0.75f, 0.0f, 1.0f,
-    
-    -0.75f, -0.70f, 0.0f, 1.0f,
-	-0.75f, 0.80f, 0.0f, 1.0f,
-	0.75f, 0.80f, 0.0f, 1.0f,
+const float vertexData[] = {
+    0.0f,    0.5f, 0.0f, 1.0f,
+    0.5f, -0.366f, 0.0f, 1.0f,
+    -0.5f, -0.366f, 0.0f, 1.0f,
+    1.0f,    0.0f, 0.0f, 1.0f,
+    0.0f,    1.0f, 0.0f, 1.0f,
+    0.0f,    0.0f, 1.0f, 1.0f,
 };
 
-global char* PATH_VS_SIMPLE = "C:/_Eric/Code/d3d/stormwarden/source/shaders/SimpleVS.vert";
-global char* PATH_FS_POSITION = "C:/_Eric/Code/d3d/stormwarden/source/shaders/PositionFS.frag";
+global char* PATH_VS_1 = "C:/_Eric/Code/d3d/stormwarden/source/shaders/SimpleVS.vert";
+global char* PATH_FS_1 = "C:/_Eric/Code/d3d/stormwarden/source/shaders/PositionFS.frag";
 
-//global char* PATH_FS_MULTI_INPUT = "C:/_Eric/Code/d3d/stormwarden/source/shaders/PositionFS.frag";
+global char* PATH_VS_2 = "C:/_Eric/Code/d3d/stormwarden/source/shaders/2_PositionVS.vert";
+global char* PATH_FS_2 = "C:/_Eric/Code/d3d/stormwarden/source/shaders/2_PositionFS.frag";
 
-global GL_State _gls;
+
+global GL_State gls_;
 global GL_State* GLS; 
