@@ -106,6 +106,13 @@ W32_InitOpenGL(HDC *device_context, HINSTANCE h_instance)
                 wglDeleteContext(gl_dummy_render_context);
                 wglMakeCurrent(*device_context, global_opengl_render_context);
                 wglSwapIntervalEXT(0);
+                
+                //char* VersionGL = (char*)glGetString(GL_VERSION);
+                //Log(VersionGL);
+                
+                // TODO(Eric): glViewport call here??
+                //glViewport(0, 0, 300, 300);
+                
                 result = 1;
             }
         }

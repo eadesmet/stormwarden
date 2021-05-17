@@ -112,6 +112,12 @@ W32_WindowProc(HWND window_handle, UINT message, WPARAM w_param, LPARAM l_param)
         global_os.quit = 1;
         result = 0;
     }
+    else if (message == WM_SIZE)
+    {
+        u32 Width = LOWORD(l_param);
+        u32 Height = HIWORD(l_param);
+        glViewport(0, 0, Width, Height);
+    }
     else if(message == WM_LBUTTONDOWN)
     {
         OS_PushEvent(OS_MousePressEvent(MouseButton_Left, global_os.mouse_position));
