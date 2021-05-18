@@ -183,6 +183,9 @@ struct OS_State
     b32 wait_for_events_to_update;
     b32 pump_events;
     
+    // NOTE(Eric): Maybe don't want this? How would I pass a resize event to the game? is it in Events?
+    b32 resized;
+    
     // NOTE(rjf): Event Queue and Input Data
     v2 mouse_position;
     u64 event_count;

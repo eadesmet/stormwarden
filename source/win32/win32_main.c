@@ -114,9 +114,11 @@ W32_WindowProc(HWND window_handle, UINT message, WPARAM w_param, LPARAM l_param)
     }
     else if (message == WM_SIZE)
     {
-        u32 Width = LOWORD(l_param);
-        u32 Height = HIWORD(l_param);
-        glViewport(0, 0, Width, Height);
+        //u32 Width = LOWORD(l_param);
+        //u32 Height = HIWORD(l_param);
+        //glViewport(0, 0, Width, Height);
+        
+        global_os.resized = 1;
     }
     else if(message == WM_LBUTTONDOWN)
     {

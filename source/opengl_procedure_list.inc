@@ -23,4 +23,5 @@ GLProc(BufferSubData, BUFFERSUBDATA)
 GLProc(GetUniformLocation, GETUNIFORMLOCATION)
 GLProc(Uniform2f, UNIFORM2F)
 GLProc(Uniform1f, UNIFORM1F)
+GLProc(UniformMatrix4fv, UNIFORMMATRIX4FV)
 #undef GLProc

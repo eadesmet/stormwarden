@@ -8,9 +8,9 @@ struct GL_State
     GLuint vertexBufferObject;
     GLuint vao;
     GLuint offsetUniform;
-    GLuint frustumScaleUnif;
-    GLuint zNearUnif;
-    GLuint zFarUnif;
+    GLuint perspectiveMatrixUnif;
+    
+    m4 perspectiveMatrix;
 };
 
 
@@ -26,10 +26,14 @@ global char* PATH_FS_3_CALC = "C:/_Eric/Code/d3d/stormwarden/source/shaders/3_Ca
 
 global char* PATH_VS_4_ORTHO_CUBE = "C:/_Eric/Code/d3d/stormwarden/source/shaders/4_OrthoCube.vert";
 global char* PATH_VS_4_MANUAL_PERSPECTIVE = "C:/_Eric/Code/d3d/stormwarden/source/shaders/4_ManualPerspective.vert";
+global char* PATH_VS_4_MATRIX_PERSPECTIVE = "C:/_Eric/Code/d3d/stormwarden/source/shaders/4_MatrixPerspective.vert";
 global char* PATH_FS_4_ORTHO_CUBE = "C:/_Eric/Code/d3d/stormwarden/source/shaders/4_OrthoCube.frag";
 
 global GL_State gls_;
 global GL_State* GLS; 
+
+// NOTE(Eric): Changing this value is interesting. smaller = smaller objects, negative = image flipped
+global f32 fFrustumScale = 1.0f;
 
 
 const float vertexData[] = {

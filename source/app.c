@@ -27,7 +27,7 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
     void* ShaderData = M_ArenaPush(&os->frame_arena, 2056);
     u64 ShaderLength = 0;
     String8 Path;
-    Path.str = PATH_VS_4_MANUAL_PERSPECTIVE;
+    Path.str = PATH_VS_4_MATRIX_PERSPECTIVE;
     Path.size = CalculateCStringLength(Path.str);
     os->LoadEntireFile(&os->frame_arena, Path, &ShaderData, &ShaderLength);
     Assert(ShaderLength > 0);
@@ -44,15 +44,21 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
     GLS->theProgram = GL_CreateProgram();
     
     GLS->offsetUniform = glGetUniformLocation(GLS->theProgram, "offset");
+    GLS->perspectiveMatrixUnif = glGetUniformLocation(GLS->theProgram, "perspectiveMatrix");
     
-    GLS->frustumScaleUnif = glGetUniformLocation(GLS->theProgram, "frustumScale");
-    GLS->zNearUnif = glGetUniformLocation(GLS->theProgram, "zNear");
-    GLS->zFarUnif = glGetUniformLocation(GLS->theProgram, "zFar");
+    f32 fzNear = 0.5f;
+    f32 fzFar = 3.0f;
+    
+    m4 m = {0};
+    GLS->perspectiveMatrix = m;
+    GLS->perspectiveMatrix.elements[0][0] = fFrustumScale;
+    GLS->perspectiveMatrix.elements[1][1] = fFrustumScale;
+    GLS->perspectiveMatrix.elements[2][2] = (fzFar + fzNear) / (fzNear - fzFar);
+    GLS->perspectiveMatrix.elements[3][2] = (2 * fzFar * fzNear) / (fzNear - fzFar);
+    GLS->perspectiveMatrix.elements[2][3] = -1.0f;
     
     glUseProgram(GLS->theProgram);
-    glUniform1f(GLS->frustumScaleUnif, 1.0f);
-    glUniform1f(GLS->zNearUnif, 1.0f);
-    glUniform1f(GLS->zFarUnif, 3.0f);
+    glUniformMatrix4fv(GLS->perspectiveMatrixUnif, 1, GL_FALSE, &GLS->perspectiveMatrix.elements[0][0]);
     glUseProgram(0);
     
     // NOTE(Eric): Init Vertex Buffer
@@ -71,7 +77,6 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
     glCullFace(GL_BACK);
     glFrontFace(GL_CW);
     
-    glViewport(0, 0, os->window_size.width, os->window_size.height);
 }
 
 APP_HOT_LOAD// NOTE(Eric): INIT AND ON CODE-RELOAD
@@ -83,6 +88,20 @@ APP_HOT_UNLOAD {}
 
 APP_UPDATE// NOTE(Eric): PER FRAME
 {
+    if (os->resized)
+    {
+        GLS->perspectiveMatrix.elements[0][0] = fFrustumScale / (os->window_size.width / (float)os->window_size.height);
+        GLS->perspectiveMatrix.elements[1][1] = fFrustumScale;
+        
+        glUseProgram(GLS->theProgram);
+        glUniformMatrix4fv(GLS->perspectiveMatrixUnif, 1, GL_FALSE, &GLS->perspectiveMatrix.elements[0][0]);
+        glUseProgram(0);
+        
+        glViewport(0, 0, (GLsizei)os->window_size.width, (GLsizei)os->window_size.height);
+        
+        os->resized = 0;
+    }
+    
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     
