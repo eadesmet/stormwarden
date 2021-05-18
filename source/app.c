@@ -35,7 +35,7 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
     
     ShaderData = M_ArenaPushZero(&os->frame_arena, 2056);
     ShaderLength = 0;
-    Path.str = PATH_FS_1;
+    Path.str = PATH_FS_3_CALC;
     Path.size = CalculateCStringLength(Path.str);
     os->LoadEntireFile(&os->frame_arena, Path, &ShaderData, &ShaderLength);
     Assert(ShaderLength > 0);
@@ -47,10 +47,12 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
     // NOTE(Eric): Returns -1 if it has no location
     GLS->uElapsedTime = glGetUniformLocation(GLS->theProgram, "time");
     
-    GLS->uLoopDuration = glGetUniformLocation(GLS->theProgram, "loopDuration");
+    GLint uLoopDuration = glGetUniformLocation(GLS->theProgram, "loopDuration");
+    GLint uFragLoopDuration = glGetUniformLocation(GLS->theProgram, "fragLoopDuration");
     
     glUseProgram(GLS->theProgram);
-    glUniform1f(GLS->uLoopDuration, 5.0f);
+    glUniform1f(uLoopDuration, 5.0f);
+    glUniform1f(uFragLoopDuration, 10.0f);
     glUseProgram(0);
     
     // NOTE(Eric): Init Vertex Buffer

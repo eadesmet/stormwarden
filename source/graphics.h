@@ -8,7 +8,7 @@ struct GL_State
     GLuint vertexBufferObject;
     GLuint vao;
     GLuint uElapsedTime;  // Uniform
-    GLuint uLoopDuration; // Uniform
+    
 };
 
 const float vertexData[] = {
@@ -25,7 +25,7 @@ global char* PATH_FS_2 = "C:/_Eric/Code/d3d/stormwarden/source/shaders/2_Positio
 
 global char* PATH_VS_3 = "C:/_Eric/Code/d3d/stormwarden/source/shaders/3_PositionOffset.vert";
 global char* PATH_VS_3_CALC = "C:/_Eric/Code/d3d/stormwarden/source/shaders/3_CalcOffset.vert";
-//global char* PATH_FS_3 = "C:/_Eric/Code/d3d/stormwarden/source/shaders/2_PositionFS.frag";
+global char* PATH_FS_3_CALC = "C:/_Eric/Code/d3d/stormwarden/source/shaders/3_CalcColor.frag";
 
 global GL_State gls_;
 global GL_State* GLS; 
