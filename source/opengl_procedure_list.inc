@@ -19,4 +19,5 @@ GLProc(UseProgram, USEPROGRAM)
 GLProc(EnableVertexAttribArray, ENABLEVERTEXATTRIBARRAY)
 GLProc(VertexAttribPointer, VERTEXATTRIBPOINTER)
 GLProc(DisableVertexAttribArray, DISABLEVERTEXATTRIBARRAY)
+GLProc(BufferSubData, BUFFERSUBDATA)
 #undef GLProc

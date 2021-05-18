@@ -46,7 +46,7 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
         glGenBuffers(1, &GLS->vertexBufferObject);
         
         glBindBuffer(GL_ARRAY_BUFFER, GLS->vertexBufferObject);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertexData), vertexData, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertexData), vertexData, GL_STREAM_DRAW);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         
         glGenVertexArrays(1, &GLS->vao);
@@ -65,6 +65,36 @@ APP_HOT_UNLOAD {}
 
 APP_UPDATE// NOTE(Eric): PER FRAME
 {
+    // NOTE(Eric): Calculate the offset X and Y
+    f32 OffsetX, OffsetY;
+    {
+        const float fLoopDuration = 5.0f;
+        const float fScale = 3.14159f * 2.0f / fLoopDuration;
+        
+        float fElapsedTime = os->GetTime() / 10.0f;
+        
+        float fCurrTimeThroughLoop = fmodf(fElapsedTime, fLoopDuration);
+        
+        OffsetX = Cos(fCurrTimeThroughLoop * fScale) * 0.5f;
+        OffsetY = Sin(fCurrTimeThroughLoop * fScale) * 0.5f;
+    }
+    
+    // NOTE(Eric): Update the vertex data
+    {
+        float NewVertexData[ArrayCount(vertexData)];
+        memcpy(&NewVertexData, vertexData, sizeof(vertexData));
+        
+        for (u32 Index = 0; Index < ArrayCount(vertexData); Index += 4)
+        {
+            NewVertexData[Index] += OffsetX;
+            NewVertexData[Index+1] += OffsetY;
+        }
+        
+        glBindBuffer(GL_ARRAY_BUFFER, GLS->vertexBufferObject);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertexData), &NewVertexData);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+    }
+    
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     
