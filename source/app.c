@@ -27,19 +27,25 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
     void* ShaderData = M_ArenaPush(&os->frame_arena, 2056);
     u64 ShaderLength = 0;
     String8 Path;
-    Path.str = PATH_VS_2;
+    Path.str = PATH_VS_3;
     Path.size = CalculateCStringLength(Path.str);
     os->LoadEntireFile(&os->frame_arena, Path, &ShaderData, &ShaderLength);
+    Assert(ShaderLength > 0);
     GLS->vShader = GL_CreateShader(GL_VERTEX_SHADER, (char*)ShaderData);
     
     ShaderData = M_ArenaPushZero(&os->frame_arena, 2056);
     ShaderLength = 0;
-    Path.str = PATH_FS_2;
+    Path.str = PATH_FS_1;
     Path.size = CalculateCStringLength(Path.str);
     os->LoadEntireFile(&os->frame_arena, Path, &ShaderData, &ShaderLength);
+    Assert(ShaderLength > 0);
     GLS->fShader = GL_CreateShader(GL_FRAGMENT_SHADER, (char*)ShaderData);
     
     GLS->theProgram = GL_CreateProgram();
+    
+    // NOTE(Eric): Query for the location of the Uniform within the program
+    // NOTE(Eric): Returns -1 if it has no location
+    GLS->offsetLocation = glGetUniformLocation(GLS->theProgram, "offset");
     
     // NOTE(Eric): Init Vertex Buffer
     {
@@ -79,37 +85,20 @@ APP_UPDATE// NOTE(Eric): PER FRAME
         OffsetY = Sin(fCurrTimeThroughLoop * fScale) * 0.5f;
     }
     
-    // NOTE(Eric): Update the vertex data
-    {
-        float NewVertexData[ArrayCount(vertexData)];
-        memcpy(&NewVertexData, vertexData, sizeof(vertexData));
-        
-        for (u32 Index = 0; Index < ArrayCount(vertexData); Index += 4)
-        {
-            NewVertexData[Index] += OffsetX;
-            NewVertexData[Index+1] += OffsetY;
-        }
-        
-        glBindBuffer(GL_ARRAY_BUFFER, GLS->vertexBufferObject);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertexData), &NewVertexData);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-    }
-    
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     
     glUseProgram(GLS->theProgram);
     
+    glUniform2f(GLS->offsetLocation, OffsetX, OffsetY);
+    
 	glBindBuffer(GL_ARRAY_BUFFER, GLS->vertexBufferObject);
 	glEnableVertexAttribArray(0);// NOTE(Eric): This arg is the 'position=0' in the shader
-    glEnableVertexAttribArray(1);
 	glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, (void*)48);
     
 	glDrawArrays(GL_TRIANGLES, 0, 3);
     
 	glDisableVertexAttribArray(0);
-    glDisableVertexAttribArray(1);
 	glUseProgram(0);
     
     os->RefreshScreen();

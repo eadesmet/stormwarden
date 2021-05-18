@@ -64,7 +64,7 @@ GL_CreateProgram()
     glDeleteShader(GLS->vShader);
     glDeleteShader(GLS->fShader);
     
-	return program;
+    return program;
 }
 
 

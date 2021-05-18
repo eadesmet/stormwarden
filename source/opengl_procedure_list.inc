@@ -20,4 +20,6 @@ GLProc(EnableVertexAttribArray, ENABLEVERTEXATTRIBARRAY)
 GLProc(VertexAttribPointer, VERTEXATTRIBPOINTER)
 GLProc(DisableVertexAttribArray, DISABLEVERTEXATTRIBARRAY)
 GLProc(BufferSubData, BUFFERSUBDATA)
+GLProc(GetUniformLocation, GETUNIFORMLOCATION)
+GLProc(Uniform2f, UNIFORM2F)
 #undef GLProc

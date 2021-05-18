@@ -7,7 +7,7 @@ struct GL_State
     GLuint theProgram;
     GLuint vertexBufferObject;
     GLuint vao;
-    
+    GLuint offsetLocation; // Uniform
 };
 
 const float vertexData[] = {
@@ -25,6 +25,8 @@ global char* PATH_FS_1 = "C:/_Eric/Code/d3d/stormwarden/source/shaders/PositionF
 global char* PATH_VS_2 = "C:/_Eric/Code/d3d/stormwarden/source/shaders/2_PositionVS.vert";
 global char* PATH_FS_2 = "C:/_Eric/Code/d3d/stormwarden/source/shaders/2_PositionFS.frag";
 
+global char* PATH_VS_3 = "C:/_Eric/Code/d3d/stormwarden/source/shaders/3_PositionOffset.vert";
+//global char* PATH_FS_3 = "C:/_Eric/Code/d3d/stormwarden/source/shaders/2_PositionFS.frag";
 
 global GL_State gls_;
 global GL_State* GLS; 
