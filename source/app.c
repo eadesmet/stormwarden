@@ -27,7 +27,7 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
     void* ShaderData = M_ArenaPush(&os->frame_arena, 2056);
     u64 ShaderLength = 0;
     String8 Path;
-    Path.str = PATH_VS_3;
+    Path.str = PATH_VS_3_CALC;
     Path.size = CalculateCStringLength(Path.str);
     os->LoadEntireFile(&os->frame_arena, Path, &ShaderData, &ShaderLength);
     Assert(ShaderLength > 0);
@@ -45,7 +45,13 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
     
     // NOTE(Eric): Query for the location of the Uniform within the program
     // NOTE(Eric): Returns -1 if it has no location
-    GLS->offsetLocation = glGetUniformLocation(GLS->theProgram, "offset");
+    GLS->uElapsedTime = glGetUniformLocation(GLS->theProgram, "time");
+    
+    GLS->uLoopDuration = glGetUniformLocation(GLS->theProgram, "loopDuration");
+    
+    glUseProgram(GLS->theProgram);
+    glUniform1f(GLS->uLoopDuration, 5.0f);
+    glUseProgram(0);
     
     // NOTE(Eric): Init Vertex Buffer
     {
@@ -71,26 +77,12 @@ APP_HOT_UNLOAD {}
 
 APP_UPDATE// NOTE(Eric): PER FRAME
 {
-    // NOTE(Eric): Calculate the offset X and Y
-    f32 OffsetX, OffsetY;
-    {
-        const float fLoopDuration = 5.0f;
-        const float fScale = 3.14159f * 2.0f / fLoopDuration;
-        
-        float fElapsedTime = os->GetTime() / 10.0f;
-        
-        float fCurrTimeThroughLoop = fmodf(fElapsedTime, fLoopDuration);
-        
-        OffsetX = Cos(fCurrTimeThroughLoop * fScale) * 0.5f;
-        OffsetY = Sin(fCurrTimeThroughLoop * fScale) * 0.5f;
-    }
-    
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     
     glUseProgram(GLS->theProgram);
     
-    glUniform2f(GLS->offsetLocation, OffsetX, OffsetY);
+    glUniform1f(GLS->uElapsedTime, os->GetTime());
     
 	glBindBuffer(GL_ARRAY_BUFFER, GLS->vertexBufferObject);
 	glEnableVertexAttribArray(0);// NOTE(Eric): This arg is the 'position=0' in the shader

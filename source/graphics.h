@@ -7,16 +7,14 @@ struct GL_State
     GLuint theProgram;
     GLuint vertexBufferObject;
     GLuint vao;
-    GLuint offsetLocation; // Uniform
+    GLuint uElapsedTime;  // Uniform
+    GLuint uLoopDuration; // Uniform
 };
 
 const float vertexData[] = {
-    0.0f,    0.5f, 0.0f, 1.0f,
-    0.5f, -0.366f, 0.0f, 1.0f,
-    -0.5f, -0.366f, 0.0f, 1.0f,
-    1.0f,    0.0f, 0.0f, 1.0f,
-    0.0f,    1.0f, 0.0f, 1.0f,
-    0.0f,    0.0f, 1.0f, 1.0f,
+    0.25f, 0.25f, 0.0f, 1.0f,
+	0.25f, -0.25f, 0.0f, 1.0f,
+	-0.25f, -0.25f, 0.0f, 1.0f,
 };
 
 global char* PATH_VS_1 = "C:/_Eric/Code/d3d/stormwarden/source/shaders/SimpleVS.vert";
@@ -26,6 +24,7 @@ global char* PATH_VS_2 = "C:/_Eric/Code/d3d/stormwarden/source/shaders/2_Positio
 global char* PATH_FS_2 = "C:/_Eric/Code/d3d/stormwarden/source/shaders/2_PositionFS.frag";
 
 global char* PATH_VS_3 = "C:/_Eric/Code/d3d/stormwarden/source/shaders/3_PositionOffset.vert";
+global char* PATH_VS_3_CALC = "C:/_Eric/Code/d3d/stormwarden/source/shaders/3_CalcOffset.vert";
 //global char* PATH_FS_3 = "C:/_Eric/Code/d3d/stormwarden/source/shaders/2_PositionFS.frag";
 
 global GL_State gls_;
