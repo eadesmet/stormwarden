@@ -6,7 +6,9 @@ struct GL_State
     GLuint fShader;
     GLuint theProgram;
     GLuint vertexBufferObject;
+    GLuint indexBufferObject;
     GLuint vao;
+    GLuint vao2;
     GLuint offsetUniform;
     GLuint perspectiveMatrixUnif;
     
@@ -35,105 +37,131 @@ global GL_State* GLS;
 // NOTE(Eric): Changing this value is interesting. smaller = smaller objects, negative = image flipped
 global f32 fFrustumScale = 1.0f;
 
+const int numberOfVertices = 36;
+
+#define RIGHT_EXTENT 0.8f
+#define LEFT_EXTENT -RIGHT_EXTENT
+#define TOP_EXTENT 0.20f
+#define MIDDLE_EXTENT 0.0f
+#define BOTTOM_EXTENT -TOP_EXTENT
+#define FRONT_EXTENT -1.25f
+#define REAR_EXTENT -1.75f
+
+#define GREEN_COLOR 0.75f, 0.75f, 1.0f, 1.0f
+#define BLUE_COLOR 	0.0f, 0.5f, 0.0f, 1.0f
+#define RED_COLOR 1.0f, 0.0f, 0.0f, 1.0f
+#define GREY_COLOR 0.8f, 0.8f, 0.8f, 1.0f
+#define BROWN_COLOR 0.5f, 0.5f, 0.0f, 1.0f
 
 const float vertexData[] = {
-    0.25f,  0.25f, -1.25f, 1.0f,
-    0.25f, -0.25f, -1.25f, 1.0f,
-	-0.25f,  0.25f, -1.25f, 1.0f,
+	//Object 1 positions
+	LEFT_EXTENT,	TOP_EXTENT,		REAR_EXTENT,
+	LEFT_EXTENT,	MIDDLE_EXTENT,	FRONT_EXTENT,
+	RIGHT_EXTENT,	MIDDLE_EXTENT,	FRONT_EXTENT,
+	RIGHT_EXTENT,	TOP_EXTENT,		REAR_EXTENT,
     
-    0.25f, -0.25f, -1.25f, 1.0f,
-	-0.25f, -0.25f, -1.25f, 1.0f,
-	-0.25f,  0.25f, -1.25f, 1.0f,
+	LEFT_EXTENT,	BOTTOM_EXTENT,	REAR_EXTENT,
+	LEFT_EXTENT,	MIDDLE_EXTENT,	FRONT_EXTENT,
+	RIGHT_EXTENT,	MIDDLE_EXTENT,	FRONT_EXTENT,
+	RIGHT_EXTENT,	BOTTOM_EXTENT,	REAR_EXTENT,
     
-    0.25f,  0.25f, -2.75f, 1.0f,
-	-0.25f,  0.25f, -2.75f, 1.0f,
-    0.25f, -0.25f, -2.75f, 1.0f,
+	LEFT_EXTENT,	TOP_EXTENT,		REAR_EXTENT,
+	LEFT_EXTENT,	MIDDLE_EXTENT,	FRONT_EXTENT,
+	LEFT_EXTENT,	BOTTOM_EXTENT,	REAR_EXTENT,
     
-    0.25f, -0.25f, -2.75f, 1.0f,
-	-0.25f,  0.25f, -2.75f, 1.0f,
-	-0.25f, -0.25f, -2.75f, 1.0f,
+	RIGHT_EXTENT,	TOP_EXTENT,		REAR_EXTENT,
+	RIGHT_EXTENT,	MIDDLE_EXTENT,	FRONT_EXTENT,
+	RIGHT_EXTENT,	BOTTOM_EXTENT,	REAR_EXTENT,
     
-	-0.25f,  0.25f, -1.25f, 1.0f,
-	-0.25f, -0.25f, -1.25f, 1.0f,
-	-0.25f, -0.25f, -2.75f, 1.0f,
+	LEFT_EXTENT,	BOTTOM_EXTENT,	REAR_EXTENT,
+	LEFT_EXTENT,	TOP_EXTENT,		REAR_EXTENT,
+	RIGHT_EXTENT,	TOP_EXTENT,		REAR_EXTENT,
+	RIGHT_EXTENT,	BOTTOM_EXTENT,	REAR_EXTENT,
     
-	-0.25f,  0.25f, -1.25f, 1.0f,
-	-0.25f, -0.25f, -2.75f, 1.0f,
-	-0.25f,  0.25f, -2.75f, 1.0f,
+	//Object 2 positions
+	TOP_EXTENT,		RIGHT_EXTENT,	REAR_EXTENT,
+	MIDDLE_EXTENT,	RIGHT_EXTENT,	FRONT_EXTENT,
+	MIDDLE_EXTENT,	LEFT_EXTENT,	FRONT_EXTENT,
+	TOP_EXTENT,		LEFT_EXTENT,	REAR_EXTENT,
     
-    0.25f,  0.25f, -1.25f, 1.0f,
-    0.25f, -0.25f, -2.75f, 1.0f,
-    0.25f, -0.25f, -1.25f, 1.0f,
+	BOTTOM_EXTENT,	RIGHT_EXTENT,	REAR_EXTENT,
+	MIDDLE_EXTENT,	RIGHT_EXTENT,	FRONT_EXTENT,
+	MIDDLE_EXTENT,	LEFT_EXTENT,	FRONT_EXTENT,
+	BOTTOM_EXTENT,	LEFT_EXTENT,	REAR_EXTENT,
     
-    0.25f,  0.25f, -1.25f, 1.0f,
-    0.25f,  0.25f, -2.75f, 1.0f,
-    0.25f, -0.25f, -2.75f, 1.0f,
+	TOP_EXTENT,		RIGHT_EXTENT,	REAR_EXTENT,
+	MIDDLE_EXTENT,	RIGHT_EXTENT,	FRONT_EXTENT,
+	BOTTOM_EXTENT,	RIGHT_EXTENT,	REAR_EXTENT,
     
-    0.25f,  0.25f, -2.75f, 1.0f,
-    0.25f,  0.25f, -1.25f, 1.0f,
-	-0.25f,  0.25f, -1.25f, 1.0f,
+	TOP_EXTENT,		LEFT_EXTENT,	REAR_EXTENT,
+	MIDDLE_EXTENT,	LEFT_EXTENT,	FRONT_EXTENT,
+	BOTTOM_EXTENT,	LEFT_EXTENT,	REAR_EXTENT,
     
-    0.25f,  0.25f, -2.75f, 1.0f,
-	-0.25f,  0.25f, -1.25f, 1.0f,
-	-0.25f,  0.25f, -2.75f, 1.0f,
+	BOTTOM_EXTENT,	RIGHT_EXTENT,	REAR_EXTENT,
+	TOP_EXTENT,		RIGHT_EXTENT,	REAR_EXTENT,
+	TOP_EXTENT,		LEFT_EXTENT,	REAR_EXTENT,
+	BOTTOM_EXTENT,	LEFT_EXTENT,	REAR_EXTENT,
     
-    0.25f, -0.25f, -2.75f, 1.0f,
-	-0.25f, -0.25f, -1.25f, 1.0f,
-    0.25f, -0.25f, -1.25f, 1.0f,
+	//Object 1 colors
+	GREEN_COLOR,
+	GREEN_COLOR,
+	GREEN_COLOR,
+	GREEN_COLOR,
     
-    0.25f, -0.25f, -2.75f, 1.0f,
-	-0.25f, -0.25f, -2.75f, 1.0f,
-	-0.25f, -0.25f, -1.25f, 1.0f,
+	BLUE_COLOR,
+	BLUE_COLOR,
+	BLUE_COLOR,
+	BLUE_COLOR,
     
+	RED_COLOR,
+	RED_COLOR,
+	RED_COLOR,
     
+	GREY_COLOR,
+	GREY_COLOR,
+	GREY_COLOR,
     
+	BROWN_COLOR,
+	BROWN_COLOR,
+	BROWN_COLOR,
+	BROWN_COLOR,
     
-	0.0f, 0.0f, 1.0f, 1.0f,
-	0.0f, 0.0f, 1.0f, 1.0f,
-	0.0f, 0.0f, 1.0f, 1.0f,
+	//Object 2 colors
+	RED_COLOR,
+	RED_COLOR,
+	RED_COLOR,
+	RED_COLOR,
     
-	0.0f, 0.0f, 1.0f, 1.0f,
-	0.0f, 0.0f, 1.0f, 1.0f,
-	0.0f, 0.0f, 1.0f, 1.0f,
+	BROWN_COLOR,
+	BROWN_COLOR,
+	BROWN_COLOR,
+	BROWN_COLOR,
     
-	0.8f, 0.8f, 0.8f, 1.0f,
-	0.8f, 0.8f, 0.8f, 1.0f,
-	0.8f, 0.8f, 0.8f, 1.0f,
+	BLUE_COLOR,
+	BLUE_COLOR,
+	BLUE_COLOR,
     
-	0.8f, 0.8f, 0.8f, 1.0f,
-	0.8f, 0.8f, 0.8f, 1.0f,
-	0.8f, 0.8f, 0.8f, 1.0f,
+	GREEN_COLOR,
+	GREEN_COLOR,
+	GREEN_COLOR,
     
-	0.0f, 1.0f, 0.0f, 1.0f,
-	0.0f, 1.0f, 0.0f, 1.0f,
-	0.0f, 1.0f, 0.0f, 1.0f,
+	GREY_COLOR,
+	GREY_COLOR,
+	GREY_COLOR,
+	GREY_COLOR,
+};
+
+const GLshort indexData[] =
+{
+	0, 2, 1,
+	3, 2, 0,
     
-	0.0f, 1.0f, 0.0f, 1.0f,
-	0.0f, 1.0f, 0.0f, 1.0f,
-	0.0f, 1.0f, 0.0f, 1.0f,
+	4, 5, 6,
+	6, 7, 4,
     
-	0.5f, 0.5f, 0.0f, 1.0f,
-	0.5f, 0.5f, 0.0f, 1.0f,
-	0.5f, 0.5f, 0.0f, 1.0f,
+	8, 9, 10,
+	11, 13, 12,
     
-	0.5f, 0.5f, 0.0f, 1.0f,
-	0.5f, 0.5f, 0.0f, 1.0f,
-	0.5f, 0.5f, 0.0f, 1.0f,
-    
-	1.0f, 0.0f, 0.0f, 1.0f,
-	1.0f, 0.0f, 0.0f, 1.0f,
-	1.0f, 0.0f, 0.0f, 1.0f,
-    
-	1.0f, 0.0f, 0.0f, 1.0f,
-	1.0f, 0.0f, 0.0f, 1.0f,
-	1.0f, 0.0f, 0.0f, 1.0f,
-    
-	0.0f, 1.0f, 1.0f, 1.0f,
-	0.0f, 1.0f, 1.0f, 1.0f,
-	0.0f, 1.0f, 1.0f, 1.0f,
-    
-	0.0f, 1.0f, 1.0f, 1.0f,
-	0.0f, 1.0f, 1.0f, 1.0f,
-	0.0f, 1.0f, 1.0f, 1.0f,
-    
+	14, 16, 15,
+	17, 16, 14,
 };

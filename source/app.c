@@ -64,13 +64,49 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
     // NOTE(Eric): Init Vertex Buffer
     {
         glGenBuffers(1, &GLS->vertexBufferObject);
-        
         glBindBuffer(GL_ARRAY_BUFFER, GLS->vertexBufferObject);
         glBufferData(GL_ARRAY_BUFFER, sizeof(vertexData), vertexData, GL_STATIC_DRAW);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         
+        glGenBuffers(1, &GLS->indexBufferObject);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GLS->indexBufferObject);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indexData), indexData, GL_STATIC_DRAW);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    }
+    
+    // NOTE(Eric): Init Vertex Array Objects
+    {
         glGenVertexArrays(1, &GLS->vao);
         glBindVertexArray(GLS->vao);
+        
+        // TODO(Eric): Some of this code is a bit confusing to me still.
+        // So, the GL_ARRAY_BUFFER is NOT tied to the VAO's state
+        
+        size_t colorDataOffset = sizeof(float) * 3 * numberOfVertices;
+        
+        glBindBuffer(GL_ARRAY_BUFFER, GLS->vertexBufferObject);
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, (void*)colorDataOffset);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GLS->indexBufferObject);
+        
+        glBindVertexArray(0);
+        
+        glGenVertexArrays(1, &GLS->vao2);
+        glBindVertexArray(GLS->vao2);
+        
+        size_t posDataOffset = sizeof(float) * 3 * (numberOfVertices/2);
+        colorDataOffset += sizeof(float) * 4 * (numberOfVertices/2);
+        
+        // Use the same buffer object previously bound to GL_ARRAY_BUFFER
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)posDataOffset);
+        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, (void*)colorDataOffset);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GLS->indexBufferObject);
+        
+        glBindVertexArray(0);
     }
     
     glEnable(GL_CULL_FACE);
@@ -107,20 +143,19 @@ APP_UPDATE// NOTE(Eric): PER FRAME
     
     glUseProgram(GLS->theProgram);
     
-    glUniform2f(GLS->offsetUniform, 0.5f, 0.5f);
+    // NOTE(Eric): The second wedge is smaller because it's farther away,
+    // but it's appearing in front of the bigger one. This is explained soon.
     
-    size_t colorData = sizeof(vertexData) / 2;
-	glBindBuffer(GL_ARRAY_BUFFER, GLS->vertexBufferObject);
-	glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-	glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0);
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, (void*)colorData);
+    glBindVertexArray(GLS->vao);
+    glUniform3f(GLS->offsetUniform, 0.0f, 0.0f, 0.0f);
+    glDrawElements(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0);
     
-	glDrawArrays(GL_TRIANGLES, 0, 36);
+    glBindVertexArray(GLS->vao2);
+    glUniform3f(GLS->offsetUniform, 0.0f, 0.0f, -1.0f);
+    glDrawElements(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0);
     
-	glDisableVertexAttribArray(0);
-    glDisableVertexAttribArray(1);
-	glUseProgram(0);
+    glBindVertexArray(0);
+    glUseProgram(0);
     
     os->RefreshScreen();
 }

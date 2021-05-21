@@ -5,7 +5,7 @@ layout(location = 1) in vec4 color;
 
 smooth out vec4 theColor;
 
-uniform vec2 offset;
+uniform vec3 offset;
 uniform mat4 perspectiveMatrix;
 
 // Notice that this one passes in the Matrix instead of doing the computation here
@@ -14,7 +14,7 @@ uniform mat4 perspectiveMatrix;
 
 void main()
 {
-    vec4 cameraPos = position + vec4(offset.x, offset.y, 0.0, 0.0);
+    vec4 cameraPos = position + vec4(offset.x, offset.y, offset.z, 0.0);
     
 	// Vector-matrix multiplication is so common that it's simply used with a *
 	// Note the _order_ of this operation: the matrix is on the left, vector on the right.
