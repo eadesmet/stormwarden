@@ -25,4 +25,5 @@ GLProc(Uniform3f, UNIFORM3F)
 GLProc(Uniform2f, UNIFORM2F)
 GLProc(Uniform1f, UNIFORM1F)
 GLProc(UniformMatrix4fv, UNIFORMMATRIX4FV)
+GLProc(DrawElementsBaseVertex, DRAWELEMENTSBASEVERTEX)
 #undef GLProc

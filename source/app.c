@@ -92,21 +92,6 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GLS->indexBufferObject);
         
         glBindVertexArray(0);
-        
-        glGenVertexArrays(1, &GLS->vao2);
-        glBindVertexArray(GLS->vao2);
-        
-        size_t posDataOffset = sizeof(float) * 3 * (numberOfVertices/2);
-        colorDataOffset += sizeof(float) * 4 * (numberOfVertices/2);
-        
-        // Use the same buffer object previously bound to GL_ARRAY_BUFFER
-        glEnableVertexAttribArray(0);
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)posDataOffset);
-        glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, 0, (void*)colorDataOffset);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GLS->indexBufferObject);
-        
-        glBindVertexArray(0);
     }
     
     glEnable(GL_CULL_FACE);
@@ -150,9 +135,8 @@ APP_UPDATE// NOTE(Eric): PER FRAME
     glUniform3f(GLS->offsetUniform, 0.0f, 0.0f, 0.0f);
     glDrawElements(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0);
     
-    glBindVertexArray(GLS->vao2);
     glUniform3f(GLS->offsetUniform, 0.0f, 0.0f, -1.0f);
-    glDrawElements(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0);
+    glDrawElementsBaseVertex(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0, numberOfVertices/2);
     
     glBindVertexArray(0);
     glUseProgram(0);
