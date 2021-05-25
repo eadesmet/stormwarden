@@ -16,12 +16,17 @@
 #include "graphics.h"
 #include "graphics.c"
 
+// NOTE(Eric): This is a stupid hack. Somehow even though it's loading this procedure in
+// LoadAllOpenGLProcedures(), it's still not resolving the external symbol?
+// But when called manually, it works. I DON'T KNOW MAN.
+void (*GL_ClearDepthF)(float);
 
 APP_PERMANENT_LOAD// NOTE(Eric): INIT
 {
     os = os_;
     GLS = &gls_;
     LoadAllOpenGLProcedures();
+    GL_ClearDepthF = os->LoadOpenGLProcedure("glClearDepthf");
     
     // TODO(Eric): Clean this up and load/compile/createprogram in one step
     void* ShaderData = M_ArenaPush(&os->frame_arena, 2056);
@@ -79,9 +84,6 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
         glGenVertexArrays(1, &GLS->vao);
         glBindVertexArray(GLS->vao);
         
-        // TODO(Eric): Some of this code is a bit confusing to me still.
-        // So, the GL_ARRAY_BUFFER is NOT tied to the VAO's state
-        
         size_t colorDataOffset = sizeof(float) * 3 * numberOfVertices;
         
         glBindBuffer(GL_ARRAY_BUFFER, GLS->vertexBufferObject);
@@ -98,6 +100,10 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
     glCullFace(GL_BACK);
     glFrontFace(GL_CW);
     
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LEQUAL);
+    glDepthRange(0.0f, 1.0f);
 }
 
 APP_HOT_LOAD// NOTE(Eric): INIT AND ON CODE-RELOAD
@@ -124,15 +130,17 @@ APP_UPDATE// NOTE(Eric): PER FRAME
     }
     
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    GL_ClearDepthF(1.0f);//glCearDepthf(1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     glUseProgram(GLS->theProgram);
     
-    // NOTE(Eric): The second wedge is smaller because it's farther away,
-    // but it's appearing in front of the bigger one. This is explained soon.
+    // NOTE(Eric): Now the two wedges are overlapping because we enabled GL_DEPTH_TEST
+    // and set up the glClearDepth to 1, which is our glDepthRange zFar value.
+    // Changing the first offset uniform z value to -0.75f causes slightly less overlap, etc.
     
     glBindVertexArray(GLS->vao);
-    glUniform3f(GLS->offsetUniform, 0.0f, 0.0f, 0.0f);
+    glUniform3f(GLS->offsetUniform, 0.0f, 0.0f, -1.0f);
     glDrawElements(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0);
     
     glUniform3f(GLS->offsetUniform, 0.0f, 0.0f, -1.0f);
