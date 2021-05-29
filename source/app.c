@@ -129,6 +129,44 @@ APP_UPDATE// NOTE(Eric): PER FRAME
         os->resized = 0;
     }
     
+    local_persist b32 DepthClampingActive = 0;
+    if (os->event_count > 0)
+    {
+        // NOTE(Eric): Not sure if this is how I'm supposed to handle events in the app,
+        // but it's working for now.
+        for (u32 EventIndex = 0;
+             EventIndex < os->event_count;
+             EventIndex++)
+        {
+            OS_Event *Event = 0;
+            OS_GetNextEvent(&Event);
+            if(!Event) break;
+            
+            if (Event->type == OS_EventType_KeyPress)
+            {
+                switch(Event->key)
+                {
+                    case Key_Space:
+                    {
+                        if (DepthClampingActive)
+                            glDisable(GL_DEPTH_CLAMP);
+                        else
+                            glEnable(GL_DEPTH_CLAMP);
+                        
+                        DepthClampingActive = !DepthClampingActive;
+                    }break;
+                    case Key_Esc:
+                    {
+                        os->quit = 1;
+                    }break;
+                    default:break;
+                }
+            }
+            
+            OS_EatEvent(Event);
+        }
+    }
+
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     GL_ClearDepthF(1.0f);//glCearDepthf(1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -140,10 +178,10 @@ APP_UPDATE// NOTE(Eric): PER FRAME
     // Changing the first offset uniform z value to -0.75f causes slightly less overlap, etc.
     
     glBindVertexArray(GLS->vao);
-    glUniform3f(GLS->offsetUniform, 0.0f, 0.0f, -1.0f);
+    glUniform3f(GLS->offsetUniform, 0.0f, 0.0f, 0.8f);
     glDrawElements(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0);
     
-    glUniform3f(GLS->offsetUniform, 0.0f, 0.0f, -1.0f);
+    glUniform3f(GLS->offsetUniform, 0.0f, 0.0f, 0.6f);
     glDrawElementsBaseVertex(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0, numberOfVertices/2);
     
     glBindVertexArray(0);
