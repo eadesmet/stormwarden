@@ -229,9 +229,6 @@ W32_WindowProc(HWND window_handle, UINT message, WPARAM w_param, LPARAM l_param)
             if(vkey_code == VK_ESCAPE)
             {
                 key_input = Key_Esc;
-                
-                // TODO(Eric): I don't know where to put events. Input isn't passed to app?
-                global_os.quit = 1;
             }
             else if(vkey_code >= VK_F1 && vkey_code <= VK_F12)
             {

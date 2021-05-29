@@ -6,6 +6,10 @@ W32_LoadOpenGLProcedure(char *name)
     void *p = (void *)wglGetProcAddress(name);
     if(!p || p == (void *)0x1 || p == (void *)0x2 || p == (void *)0x3 || p == (void *)-1)
     {
+        // NOTE(Eric): ???
+        //HMODULE module = LoadLibraryA("opengl32.dll");
+        //p = (void *)GetProcAddress(module, name);
+        
         return 0;
     }
     else
@@ -109,9 +113,7 @@ W32_InitOpenGL(HDC *device_context, HINSTANCE h_instance)
                 
                 //char* VersionGL = (char*)glGetString(GL_VERSION);
                 //Log(VersionGL);
-                
-                // TODO(Eric): glViewport call here??
-                //glViewport(0, 0, 300, 300);
+                //void* Test = W32_LoadOpenGLProcedure("glClearDepthf");
                 
                 result = 1;
             }
