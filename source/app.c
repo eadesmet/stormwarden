@@ -21,6 +21,53 @@
 // But when called manually, it works. I DON'T KNOW MAN.
 void (*GL_ClearDepthF)(float);
 
+internal m4
+CalcStationaryOffset(float ElapsedTime)
+{
+    v3 Translation = {0.0f, 0.0f, -20.0f};
+    
+    m4 Result = M4TranslateV3(Translation);
+    return Result;
+}
+
+internal m4
+CalcOvalOffset(float ElapsedTime)
+{
+    float LoopDuration = 3.0f;
+    float Scale = PI * 2.0f / LoopDuration;
+    
+    float CurrTimeThroughLoop = FMod(ElapsedTime, LoopDuration);
+    
+    v3 Translation = 
+    {
+        Cos(CurrTimeThroughLoop * Scale) * 4.0f,
+        Sin(CurrTimeThroughLoop * Scale) * 6.0f,
+        -20.0f,
+    };
+    
+    m4 Result = M4TranslateV3(Translation);
+    return Result;
+}
+
+internal m4
+CalcBottomCircleOffset(float ElapsedTime)
+{
+    float LoopDuration = 3.0f;
+    float Scale = PI * 2.0f / LoopDuration;
+    
+    float CurrTimeThroughLoop = FMod(ElapsedTime, LoopDuration);
+    
+    v3 Translation = 
+    {
+        Cos(CurrTimeThroughLoop * Scale) * 5.0f,
+        -3.5f,
+        Sin(CurrTimeThroughLoop * Scale) * 5.0f - 20.0f
+    };
+    
+    m4 Result = M4TranslateV3(Translation);
+    return Result;
+}
+
 APP_PERMANENT_LOAD// NOTE(Eric): INIT
 {
     os = os_;
@@ -32,7 +79,7 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
     void* ShaderData = M_ArenaPush(&os->frame_arena, 2056);
     u64 ShaderLength = 0;
     String8 Path;
-    Path.str = PATH_VS_4_MATRIX_PERSPECTIVE;
+    Path.str = PATH_VS_6;
     Path.size = CalculateCStringLength(Path.str);
     os->LoadEntireFile(&os->frame_arena, Path, &ShaderData, &ShaderLength);
     Assert(ShaderLength > 0);
@@ -40,7 +87,7 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
     
     ShaderData = M_ArenaPushZero(&os->frame_arena, 2056);
     ShaderLength = 0;
-    Path.str = PATH_FS_4_ORTHO_CUBE;
+    Path.str = PATH_FS_6;
     Path.size = CalculateCStringLength(Path.str);
     os->LoadEntireFile(&os->frame_arena, Path, &ShaderData, &ShaderLength);
     Assert(ShaderLength > 0);
@@ -48,22 +95,22 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
     
     GLS->theProgram = GL_CreateProgram();
     
-    GLS->offsetUniform = glGetUniformLocation(GLS->theProgram, "offset");
-    GLS->perspectiveMatrixUnif = glGetUniformLocation(GLS->theProgram, "perspectiveMatrix");
+    GLS->ModelToCameraMatrixUnif = glGetUniformLocation(GLS->theProgram, "ModelToCameraMatrix");
+    GLS->CameraToClipMatrixUnif = glGetUniformLocation(GLS->theProgram, "CameraToClipMatrix");
     
-    f32 fzNear = 0.5f;
-    f32 fzFar = 3.0f;
+    f32 fzNear = 1.0f;
+    f32 fzFar = 45.0f;
     
     m4 m = {0};
-    GLS->perspectiveMatrix = m;
-    GLS->perspectiveMatrix.elements[0][0] = fFrustumScale;
-    GLS->perspectiveMatrix.elements[1][1] = fFrustumScale;
-    GLS->perspectiveMatrix.elements[2][2] = (fzFar + fzNear) / (fzNear - fzFar);
-    GLS->perspectiveMatrix.elements[3][2] = (2 * fzFar * fzNear) / (fzNear - fzFar);
-    GLS->perspectiveMatrix.elements[2][3] = -1.0f;
+    GLS->CameraToClipMatrix = m;
+    GLS->CameraToClipMatrix.elements[0][0] = fFrustumScale;
+    GLS->CameraToClipMatrix.elements[1][1] = fFrustumScale;
+    GLS->CameraToClipMatrix.elements[2][2] = (fzFar + fzNear) / (fzNear - fzFar);
+    GLS->CameraToClipMatrix.elements[2][3] = -1.0f;
+    GLS->CameraToClipMatrix.elements[3][2] = (2 * fzFar * fzNear) / (fzNear - fzFar);
     
     glUseProgram(GLS->theProgram);
-    glUniformMatrix4fv(GLS->perspectiveMatrixUnif, 1, GL_FALSE, &GLS->perspectiveMatrix.elements[0][0]);
+    glUniformMatrix4fv(GLS->CameraToClipMatrixUnif, 1, GL_FALSE, &GLS->CameraToClipMatrix.elements[0][0]);
     glUseProgram(0);
     
     // NOTE(Eric): Init Vertex Buffer
@@ -117,11 +164,11 @@ APP_UPDATE// NOTE(Eric): PER FRAME
 {
     if (os->resized)
     {
-        GLS->perspectiveMatrix.elements[0][0] = fFrustumScale / (os->window_size.width / (float)os->window_size.height);
-        GLS->perspectiveMatrix.elements[1][1] = fFrustumScale;
+        GLS->CameraToClipMatrix.elements[0][0] = fFrustumScale / (os->window_size.width / (float)os->window_size.height);
+        GLS->CameraToClipMatrix.elements[1][1] = fFrustumScale;
         
         glUseProgram(GLS->theProgram);
-        glUniformMatrix4fv(GLS->perspectiveMatrixUnif, 1, GL_FALSE, &GLS->perspectiveMatrix.elements[0][0]);
+        glUniformMatrix4fv(GLS->CameraToClipMatrixUnif, 1, GL_FALSE, &GLS->CameraToClipMatrix.elements[0][0]);
         glUseProgram(0);
         
         glViewport(0, 0, (GLsizei)os->window_size.width, (GLsizei)os->window_size.height);
@@ -166,23 +213,32 @@ APP_UPDATE// NOTE(Eric): PER FRAME
             OS_EatEvent(Event);
         }
     }
-
+    
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     GL_ClearDepthF(1.0f);//glCearDepthf(1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     glUseProgram(GLS->theProgram);
     
-    // NOTE(Eric): Now the two wedges are overlapping because we enabled GL_DEPTH_TEST
-    // and set up the glClearDepth to 1, which is our glDepthRange zFar value.
-    // Changing the first offset uniform z value to -0.75f causes slightly less overlap, etc.
-    
     glBindVertexArray(GLS->vao);
-    glUniform3f(GLS->offsetUniform, 0.0f, 0.0f, 0.8f);
-    glDrawElements(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0);
     
-    glUniform3f(GLS->offsetUniform, 0.0f, 0.0f, 0.6f);
-    glDrawElementsBaseVertex(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0, numberOfVertices/2);
+    float ElapsedTime = os->GetTime();
+    {
+        m4 StationaryTransform = CalcStationaryOffset(ElapsedTime);
+        glUniformMatrix4fv(GLS->ModelToCameraMatrixUnif, 1, GL_FALSE, &StationaryTransform.elements[0][0]);
+        glDrawElements(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0);
+        
+        m4 OvalOffset = CalcOvalOffset(ElapsedTime);
+        glUniformMatrix4fv(GLS->ModelToCameraMatrixUnif, 1, GL_FALSE, &OvalOffset.elements[0][0]);
+        glDrawElements(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0);
+        
+        m4 BottomCircle = CalcBottomCircleOffset(ElapsedTime);
+        glUniformMatrix4fv(GLS->ModelToCameraMatrixUnif, 1, GL_FALSE, &BottomCircle.elements[0][0]);
+        glDrawElements(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0);
+    }
+    
+    
+    
     
     glBindVertexArray(0);
     glUseProgram(0);
