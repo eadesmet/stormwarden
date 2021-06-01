@@ -1,0 +1,36 @@
+{
+	"folders":
+	[
+		{
+			"path": "source",
+			"file_exclude_patterns": ["*.llk", "*.pdb", "*.obj", "*.exe"]
+		}
+	],
+	"build_systems":
+	[
+		{
+			"name": "Build",
+			"selector": "source.c",
+			"working_dir": "@project_path", //$project_path
+			"quiet": true,
+			"shell": true,
+			"file_regex": "^ *([A-z]:.*)[(]([0-9]+)[)]",
+
+			"cmd": "dir",//"proc\\win\\cl.bat",
+
+/*
+			"variants":
+			[
+				{
+					"name": "Run",
+					"cmd": "run"
+				},
+				{
+					"name": "Build and Run",
+					"cmd": ["proc\\bin\\cl.bat", "&&", "run"]
+				}
+			]
+			*/
+		}
+	]
+}
