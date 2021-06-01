@@ -33,8 +33,8 @@ global char* PATH_VS_4_MATRIX_PERSPECTIVE = "../source/shaders/4_MatrixPerspecti
 global char* PATH_FS_4_ORTHO_CUBE = "../source/shaders/4_OrthoCube.frag";
 
 
-global char* PATH_VS_6 = "C:/_Eric/Code/d3d/stormwarden/source/shaders/6_PosColorLocalTransform.vert";
-global char* PATH_FS_6 = "C:/_Eric/Code/d3d/stormwarden/source/shaders/6_ColorPassthrough.frag";
+global char* PATH_VS_6 = "../source/shaders/6_PosColorLocalTransform.vert";
+global char* PATH_FS_6 = "../source/shaders/6_ColorPassthrough.frag";
 
 
 global GL_State gls_;
