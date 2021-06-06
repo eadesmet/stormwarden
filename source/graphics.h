@@ -40,9 +40,7 @@ global char* PATH_FS_6 = "../source/shaders/6_ColorPassthrough.frag";
 global GL_State gls_;
 global GL_State* GLS; 
 
-// NOTE(Eric): Changing this value is interesting. smaller = smaller objects, negative = image flipped
 global f32 fFrustumScale = 1.0f;
-
 const int numberOfVertices = 8;
 
 #define GREEN_COLOR 0.0f, 1.0f, 0.0f, 1.0f

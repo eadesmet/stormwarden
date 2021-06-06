@@ -21,52 +21,6 @@
 // But when called manually, it works. I DON'T KNOW MAN.
 void (*GL_ClearDepthF)(float);
 
-internal m4
-CalcStationaryOffset(float ElapsedTime)
-{
-    v3 Translation = {0.0f, 0.0f, -20.0f};
-    
-    m4 Result = M4TranslateV3(Translation);
-    return Result;
-}
-
-internal m4
-CalcOvalOffset(float ElapsedTime)
-{
-    float LoopDuration = 3.0f;
-    float Scale = PI * 2.0f / LoopDuration;
-    
-    float CurrTimeThroughLoop = FMod(ElapsedTime, LoopDuration);
-    
-    v3 Translation = 
-    {
-        Cos(CurrTimeThroughLoop * Scale) * 4.0f,
-        Sin(CurrTimeThroughLoop * Scale) * 6.0f,
-        -20.0f,
-    };
-    
-    m4 Result = M4TranslateV3(Translation);
-    return Result;
-}
-
-internal m4
-CalcBottomCircleOffset(float ElapsedTime)
-{
-    float LoopDuration = 3.0f;
-    float Scale = PI * 2.0f / LoopDuration;
-    
-    float CurrTimeThroughLoop = FMod(ElapsedTime, LoopDuration);
-    
-    v3 Translation = 
-    {
-        Cos(CurrTimeThroughLoop * Scale) * 5.0f,
-        -3.5f,
-        Sin(CurrTimeThroughLoop * Scale) * 5.0f - 20.0f
-    };
-    
-    m4 Result = M4TranslateV3(Translation);
-    return Result;
-}
 
 APP_PERMANENT_LOAD// NOTE(Eric): INIT
 {
@@ -98,6 +52,7 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
     GLS->ModelToCameraMatrixUnif = glGetUniformLocation(GLS->theProgram, "ModelToCameraMatrix");
     GLS->CameraToClipMatrixUnif = glGetUniformLocation(GLS->theProgram, "CameraToClipMatrix");
     
+    fFrustumScale = CalcFrustumScale(45.0f);
     f32 fzNear = 1.0f;
     f32 fzFar = 45.0f;
     

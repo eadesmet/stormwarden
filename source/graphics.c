@@ -67,6 +67,62 @@ GL_CreateProgram()
     return program;
 }
 
+internal m4
+CalcStationaryOffset(f32 ElapsedTime)
+{
+    v3 Translation = {0.0f, 0.0f, -20.0f};
+    
+    m4 Result = M4TranslateV3(Translation);
+    return Result;
+}
+
+internal m4
+CalcOvalOffset(f32 ElapsedTime)
+{
+    f32 LoopDuration = 3.0f;
+    f32 Scale = PI * 2.0f / LoopDuration;
+    
+    f32 CurrTimeThroughLoop = FMod(ElapsedTime, LoopDuration);
+    
+    v3 Translation = 
+    {
+        Cos(CurrTimeThroughLoop * Scale) * 4.0f,
+        Sin(CurrTimeThroughLoop * Scale) * 6.0f,
+        -20.0f,
+    };
+    
+    m4 Result = M4TranslateV3(Translation);
+    return Result;
+}
+
+internal m4
+CalcBottomCircleOffset(f32 ElapsedTime)
+{
+    f32 LoopDuration = 3.0f;
+    f32 Scale = PI * 2.0f / LoopDuration;
+    
+    f32 CurrTimeThroughLoop = FMod(ElapsedTime, LoopDuration);
+    
+    v3 Translation = 
+    {
+        Cos(CurrTimeThroughLoop * Scale) * 5.0f,
+        -3.5f,
+        Sin(CurrTimeThroughLoop * Scale) * 5.0f - 20.0f
+    };
+    
+    m4 Result = M4TranslateV3(Translation);
+    return Result;
+}
+
+internal f32
+CalcFrustumScale(f32 FoV_Degrees)
+{
+    f32 DegreesToRadian = PI * 2 / 360;
+    f32 FoV_Radians = FoV_Degrees * DegreesToRadian;
+    
+    f32 Result = 1.0f / Tan(FoV_Radians / 2.0f);
+    return Result;
+}
 
 
 
