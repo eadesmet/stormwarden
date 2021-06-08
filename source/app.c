@@ -19,6 +19,8 @@
 // NOTE(Eric): This is a stupid hack. Somehow even though it's loading this procedure in
 // LoadAllOpenGLProcedures(), it's still not resolving the external symbol?
 // But when called manually, it works. I DON'T KNOW MAN.
+// ALSO not available from the gl_core_46.c files, generated from galogen
+// Is it from some extension??? Maybe a problem with my machine's driver??
 void (*GL_ClearDepthF)(float);
 
 
@@ -26,7 +28,7 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
 {
     os = os_;
     GLS = &gls_;
-    LoadAllOpenGLProcedures();
+    //LoadAllOpenGLProcedures();
     GL_ClearDepthF = os->LoadOpenGLProcedure("glClearDepthf");
     
     // TODO(Eric): Clean this up and load/compile/createprogram in one step
@@ -54,7 +56,7 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
     
     fFrustumScale = CalcFrustumScale(45.0f);
     f32 fzNear = 1.0f;
-    f32 fzFar = 45.0f;
+    f32 fzFar = 61.0f;
     
     m4 m = {0};
     GLS->CameraToClipMatrix = m;
@@ -179,16 +181,24 @@ APP_UPDATE// NOTE(Eric): PER FRAME
     
     float ElapsedTime = os->GetTime();
     {
-        m4 StationaryTransform = CalcStationaryOffset(ElapsedTime);
-        glUniformMatrix4fv(GLS->ModelToCameraMatrixUnif, 1, GL_FALSE, &StationaryTransform.elements[0][0]);
+        m4 NullScale = SampleScales(ElapsedTime, SAMPLESCALE_NULL);
+        glUniformMatrix4fv(GLS->ModelToCameraMatrixUnif, 1, GL_FALSE, &NullScale.elements[0][0]);
         glDrawElements(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0);
         
-        m4 OvalOffset = CalcOvalOffset(ElapsedTime);
-        glUniformMatrix4fv(GLS->ModelToCameraMatrixUnif, 1, GL_FALSE, &OvalOffset.elements[0][0]);
+        m4 UniformScale = SampleScales(ElapsedTime, SAMPLESCALE_Uniform);
+        glUniformMatrix4fv(GLS->ModelToCameraMatrixUnif, 1, GL_FALSE, &UniformScale.elements[0][0]);
         glDrawElements(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0);
         
-        m4 BottomCircle = CalcBottomCircleOffset(ElapsedTime);
-        glUniformMatrix4fv(GLS->ModelToCameraMatrixUnif, 1, GL_FALSE, &BottomCircle.elements[0][0]);
+        m4 NonUniformScale = SampleScales(ElapsedTime, SAMPLESCALE_NonUniform);
+        glUniformMatrix4fv(GLS->ModelToCameraMatrixUnif, 1, GL_FALSE, &NonUniformScale.elements[0][0]);
+        glDrawElements(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0);
+        
+        m4 DynamicUniformScale = SampleScales(ElapsedTime, SAMPLESCALE_DynamicUniform);
+        glUniformMatrix4fv(GLS->ModelToCameraMatrixUnif, 1, GL_FALSE, &DynamicUniformScale.elements[0][0]);
+        glDrawElements(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0);
+        
+        m4 DynamicNonUniformScale = SampleScales(ElapsedTime, SAMPLESCALE_DynamicNonUniform);
+        glUniformMatrix4fv(GLS->ModelToCameraMatrixUnif, 1, GL_FALSE, &DynamicNonUniformScale.elements[0][0]);
         glDrawElements(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0);
     }
     

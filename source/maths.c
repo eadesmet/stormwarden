@@ -413,3 +413,22 @@ HSVToRGB(v3 hsv)
     
     return rgb;
 }
+
+internal f32
+Lerp(f32 A, f32 B, f32 Amount)
+{
+    f32 Result = (1-Amount) * A + Amount * B;
+    
+    return(Result);
+}
+
+internal v3
+LerpV3(v3 A, v3 B, v3 Amount)
+{
+    v3 Result = {0};
+    Result.x = Lerp(A.x, B.x, Amount.x);
+    Result.y = Lerp(A.y, B.y, Amount.y);
+    Result.z = Lerp(A.z, B.z, Amount.z);
+    
+    return(Result);
+}

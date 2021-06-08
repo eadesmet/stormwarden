@@ -124,6 +124,89 @@ CalcFrustumScale(f32 FoV_Degrees)
     return Result;
 }
 
+internal f32
+CalcLerpFactor(f32 ElapsedTime, f32 LoopDuration)
+{
+    float Result = FMod(ElapsedTime, LoopDuration) / LoopDuration;
+    if (Result > 0.5f)
+        Result = 1.0f - Result;
+    
+    Result = Result * 2.0f;
+    
+    return Result;
+}
+
+enum SampleScale
+{
+    SAMPLESCALE_NULL,
+    SAMPLESCALE_Uniform,
+    SAMPLESCALE_NonUniform,
+    SAMPLESCALE_DynamicUniform,
+    SAMPLESCALE_DynamicNonUniform
+} typedef SampleScale;
+internal m4
+SampleScales(f32 ElapsedTime, SampleScale WhichScale)
+{
+    // NOTE(Eric): All of these scale values have the same z-distance,
+    // So the size difference is coming purely from the scaling.
+    // The object in the center is unscaled (SAMPLESCALE_NULL).
+    
+    m4 Result;
+    v3 Scale;
+    v3 Offset;
+    
+    switch(WhichScale)
+    {
+        case SAMPLESCALE_NULL:
+        {
+            Scale = v3(1.0f, 1.0f, 1.0f);
+            Offset = v3(0.0f, 0.0f, -45.0f);
+            break;
+        }
+        case SAMPLESCALE_Uniform:
+        {
+            Scale = v3(4.0f, 4.0f, 4.0f);
+            Offset = v3(-10.0f, -10.0f, -45.0f);
+            break;
+        }
+        case SAMPLESCALE_NonUniform:
+        {
+            Scale = v3(0.5f, 1.0f, 10.0f);
+            Offset = v3(-10.0f, 10.0f, -45.0f);
+            break;
+        }
+        case SAMPLESCALE_DynamicUniform:
+        {
+            f32 LoopDuration = 3.0f;
+            
+            Scale = v3(1.0f, 4.0f, CalcLerpFactor(ElapsedTime, LoopDuration));
+            Offset = v3(10.0f, 10.0f, -45.0f);
+            break;
+        }
+        case SAMPLESCALE_DynamicNonUniform:
+        {
+            f32 LoopDurationX = 3.0f;
+            f32 LoopDurationZ = 5.0f;
+            
+            f32 X = Lerp(1.0f, 0.5f, CalcLerpFactor(ElapsedTime, LoopDurationX));
+            f32 Y = 1.0f;
+            f32 Z = Lerp(1.0f, 10.0f, CalcLerpFactor(ElapsedTime, LoopDurationZ));
+            
+            Scale = v3(X, Y, Z);
+            Offset = v3(10.0f, -10.0f, -45.0f);
+            break;
+        }
+    }
+    
+    Result = M4ScaleV3(Scale);
+    
+    Result.elements[3][0] = Offset.x;
+    Result.elements[3][1] = Offset.y;
+    Result.elements[3][2] = Offset.z;
+    Result.elements[3][3] = 1.0f;
+    
+    return(Result);
+}
 
 
 

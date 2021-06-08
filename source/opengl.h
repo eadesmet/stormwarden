@@ -1,4 +1,8 @@
 
+#include "ext/gl_core_46.c"
+
+#if 0
+
 #if BUILD_WIN32
 #include <windows.h>
 #include <gl/gl.h>
@@ -17,3 +21,5 @@ LoadAllOpenGLProcedures(void)
 #define GLProc(name, type) gl##name = os->LoadOpenGLProcedure("gl" #name);
 #include "opengl_procedure_list.inc"
 }
+
+#endif
