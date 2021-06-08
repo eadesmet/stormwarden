@@ -181,28 +181,26 @@ APP_UPDATE// NOTE(Eric): PER FRAME
     
     float ElapsedTime = os->GetTime();
     {
-        m4 NullScale = SampleScales(ElapsedTime, SAMPLESCALE_NULL);
-        glUniformMatrix4fv(GLS->ModelToCameraMatrixUnif, 1, GL_FALSE, &NullScale.elements[0][0]);
+        m4 NullRotation = SampleRotations(ElapsedTime, SAMPLEROTATION_NULL);
+        glUniformMatrix4fv(GLS->ModelToCameraMatrixUnif, 1, GL_FALSE, &NullRotation.elements[0][0]);
         glDrawElements(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0);
         
-        m4 UniformScale = SampleScales(ElapsedTime, SAMPLESCALE_Uniform);
-        glUniformMatrix4fv(GLS->ModelToCameraMatrixUnif, 1, GL_FALSE, &UniformScale.elements[0][0]);
+        m4 XRotation = SampleRotations(ElapsedTime, SAMPLEROTATION_RotateX);
+        glUniformMatrix4fv(GLS->ModelToCameraMatrixUnif, 1, GL_FALSE, &XRotation.elements[0][0]);
         glDrawElements(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0);
         
-        m4 NonUniformScale = SampleScales(ElapsedTime, SAMPLESCALE_NonUniform);
-        glUniformMatrix4fv(GLS->ModelToCameraMatrixUnif, 1, GL_FALSE, &NonUniformScale.elements[0][0]);
+        m4 YRotation = SampleRotations(ElapsedTime, SAMPLEROTATION_RotateY);
+        glUniformMatrix4fv(GLS->ModelToCameraMatrixUnif, 1, GL_FALSE, &YRotation.elements[0][0]);
         glDrawElements(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0);
         
-        m4 DynamicUniformScale = SampleScales(ElapsedTime, SAMPLESCALE_DynamicUniform);
-        glUniformMatrix4fv(GLS->ModelToCameraMatrixUnif, 1, GL_FALSE, &DynamicUniformScale.elements[0][0]);
+        m4 ZRotation = SampleRotations(ElapsedTime, SAMPLEROTATION_RotateZ);
+        glUniformMatrix4fv(GLS->ModelToCameraMatrixUnif, 1, GL_FALSE, &ZRotation.elements[0][0]);
         glDrawElements(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0);
         
-        m4 DynamicNonUniformScale = SampleScales(ElapsedTime, SAMPLESCALE_DynamicNonUniform);
-        glUniformMatrix4fv(GLS->ModelToCameraMatrixUnif, 1, GL_FALSE, &DynamicNonUniformScale.elements[0][0]);
+        m4 AxisRotation = SampleRotations(ElapsedTime, SAMPLEROTATION_RotateAxis);
+        glUniformMatrix4fv(GLS->ModelToCameraMatrixUnif, 1, GL_FALSE, &AxisRotation.elements[0][0]);
         glDrawElements(GL_TRIANGLES, ArrayCount(indexData), GL_UNSIGNED_SHORT, 0);
     }
-    
-    
     
     
     glBindVertexArray(0);

@@ -208,6 +208,151 @@ SampleScales(f32 ElapsedTime, SampleScale WhichScale)
     return(Result);
 }
 
+//
+
+internal f32
+ComputeAngleRad(f32 ElapsedTime, f32 LoopDuration)
+{
+    f32 Scale = PI * 2.0f / LoopDuration;
+    f32 CurrTimeThroughLoop = FMod(ElapsedTime, LoopDuration);
+    f32 Result = CurrTimeThroughLoop * Scale;
+    
+    return(Result);
+}
+
+internal m4
+RotateX(f32 ElapsedTime)
+{
+    f32 AngRad = ComputeAngleRad(ElapsedTime, 3.0);
+    f32 fCos = Cos(AngRad);
+    f32 fSin = Sin(AngRad);
+    
+    m4 Result = M4InitD(1.0f);
+    Result.elements[1][1] = fCos;
+    Result.elements[2][1] = -fSin;
+    Result.elements[1][2] = fSin;
+    Result.elements[2][2] = fCos;
+    
+    return(Result);
+}
+
+internal m4
+RotateY(f32 ElapsedTime)
+{
+    f32 AngRad = ComputeAngleRad(ElapsedTime, 2.0);
+    f32 fCos = Cos(AngRad);
+    f32 fSin = Sin(AngRad);
+    
+    m4 Result = M4InitD(1.0f);
+    Result.elements[0][0] = fCos;
+    Result.elements[2][0] = fSin;
+    Result.elements[0][2] = -fSin;
+    Result.elements[2][2] = fCos;
+    
+    return(Result);
+}
+
+internal m4
+RotateZ(f32 ElapsedTime)
+{
+    f32 AngRad = ComputeAngleRad(ElapsedTime, 2.0);
+    f32 fCos = Cos(AngRad);
+    f32 fSin = Sin(AngRad);
+    
+    m4 Result = M4InitD(1.0f);
+    Result.elements[0][0] = fCos;
+    Result.elements[1][0] = -fSin;
+    Result.elements[0][1] = fSin;
+    Result.elements[1][1] = fCos;
+    
+    return(Result);
+}
+
+internal m4
+RotateAxis(f32 ElapsedTime)
+{
+    f32 AngRad = ComputeAngleRad(ElapsedTime, 2.0);
+    f32 fCos = Cos(AngRad);
+    f32 fInvCos = 1.0f - fCos;
+    f32 fSin = Sin(AngRad);
+    f32 fInvSin = 1.0f - fSin;
+    
+    v3 Axis = v3(1.0f, 1.0f, 1.0f);
+    Axis = V3Normalize(Axis);
+    
+    m4 Result = M4InitD(1.0f);
+    
+    Result.elements[0][0] = (Axis.x * Axis.x) + ((1 - Axis.x * Axis.x) * fCos);
+	Result.elements[1][0] = Axis.x * Axis.y * (fInvCos) - (Axis.z * fSin);
+	Result.elements[2][0] = Axis.x * Axis.z * (fInvCos) + (Axis.y * fSin);
+    
+	Result.elements[0][1] = Axis.x * Axis.y * (fInvCos) + (Axis.z * fSin);
+	Result.elements[1][1] = (Axis.y * Axis.y) + ((1 - Axis.y * Axis.y) * fCos);
+	Result.elements[2][1] = Axis.y * Axis.z * (fInvCos) - (Axis.x * fSin);
+    
+	Result.elements[0][2] = Axis.x * Axis.z * (fInvCos) - (Axis.y * fSin);
+	Result.elements[1][2] = Axis.y * Axis.z * (fInvCos) + (Axis.x * fSin);
+	Result.elements[2][2] = (Axis.z * Axis.z) + ((1 - Axis.z * Axis.z) * fCos);
+    
+    return(Result);
+}
+
+enum SampleRotation
+{
+    SAMPLEROTATION_NULL,
+    SAMPLEROTATION_RotateX,
+    SAMPLEROTATION_RotateY,
+    SAMPLEROTATION_RotateZ,
+    SAMPLEROTATION_RotateAxis
+} typedef SampleRotation;
+internal m4
+SampleRotations(f32 ElapsedTime, SampleRotation WhichRotation)
+{
+    m4 Result;
+    v3 Scale;
+    v3 Offset;
+    
+    switch(WhichRotation)
+    {
+        case SAMPLEROTATION_NULL:
+        {
+            Result = M4InitD(1.0f);
+            Offset = v3(0.0f, 0.0f, -25.0f);
+            break;
+        }
+        case SAMPLEROTATION_RotateX:
+        {
+            Result = RotateX(ElapsedTime);
+            Offset = v3(-5.0f, -5.0f, -25.0f);
+            break;
+        }
+        case SAMPLEROTATION_RotateY:
+        {
+            Result = RotateY(ElapsedTime);
+            Offset = v3(-5.0f, 5.0f, -25.0f);
+            break;
+        }
+        case SAMPLEROTATION_RotateZ:
+        {
+            Result = RotateZ(ElapsedTime);
+            Offset = v3(5.0f, 5.0f, -25.0f);
+            break;
+        }
+        case SAMPLEROTATION_RotateAxis:
+        {
+            Result = RotateAxis(ElapsedTime);
+            Offset = v3(5.0f, -5.0f, -25.0f);
+            break;
+        }
+    }
+    
+    Result.elements[3][0] = Offset.x;
+    Result.elements[3][1] = Offset.y;
+    Result.elements[3][2] = Offset.z;
+    Result.elements[3][3] = 1.0f;
+    
+    return(Result);
+}
 
 
 
