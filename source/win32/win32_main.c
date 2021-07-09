@@ -1,3 +1,7 @@
+#define COBJMACROS
+#define NOMINMAX
+#define WIN32_LEAD_AND_MEAN
+
 #include <windows.h>
 #include <windowsx.h>
 #include <xinput.h>
@@ -60,6 +64,8 @@ W32_GamepadInput global_gamepads[W32_MAX_GAMEPADS];
 #include "win32_xinput.c"
 #include "win32_wasapi.c"
 #include "win32_opengl.c"
+
+#include "win32_directx.c"
 
 //~
 
@@ -551,6 +557,11 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR lp_cmd_line, int n_sh
             W32_OutputError("Fatal Error", "OpenGL initialization failure.");
             goto quit;
         }
+    }
+    
+    // NOTE(Eric): DirectX Initialization
+    {
+        d3d11_renderer D3D11_Renderer = AcquireD3D11Renderer(window_handle, 1);
     }
     
     W32_LoadXInput();
