@@ -294,7 +294,8 @@ static void ReleaseD3D11Renderer(d3d11_renderer *Renderer)
     *Renderer = ZeroRenderer;
 }
 
-static d3d11_renderer AcquireD3D11Renderer(HWND Window, int EnableDebugging)
+static d3d11_renderer 
+AcquireD3D11Renderer(HWND Window, int EnableDebugging)
 {
     d3d11_renderer Result = {0};
     

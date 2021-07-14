@@ -6,3 +6,4 @@ build/*
 *.obj
 *.dll
 *.pdb
+build/vc140.pdb
