@@ -9,19 +9,41 @@
 #include "win32_directx.h"
 
 
-static int D3D11RendererIsValid(d3d11_renderer *Renderer)
+static int 
+D3D11RendererIsValid(d3d11_info *Renderer)
 {
     int Result = (Renderer->Device &&
                   Renderer->SwapChain &&
                   Renderer->ComputeShader &&
-                  Renderer->ConstantBuffer &&
-                  Renderer->CellView &&
-                  Renderer->GlyphTextureView);
+                  Renderer->ConstantBuffer);
     
     return Result;
 }
 
-static void ActivateD3D11DebugInfo(ID3D11Device *Device)
+static void
+ReleaseD3D11Info(d3d11_info *Renderer)
+{
+    // TODO(Eric): Does releasing the Device release all it's subcomponents?
+    
+    if(Renderer->ComputeShader) ID3D11ComputeShader_Release(Renderer->ComputeShader);
+    if(Renderer->PixelShader) ID3D11ComputeShader_Release(Renderer->PixelShader);
+    if(Renderer->VertexShader) ID3D11ComputeShader_Release(Renderer->VertexShader);
+    
+    if(Renderer->ConstantBuffer) ID3D11Buffer_Release(Renderer->ConstantBuffer);
+    
+    if(Renderer->RenderView) ID3D11UnorderedAccessView_Release(Renderer->RenderView);
+    if(Renderer->SwapChain) IDXGISwapChain2_Release(Renderer->SwapChain);
+    
+    if(Renderer->DeviceContext) ID3D11DeviceContext_Release(Renderer->DeviceContext);
+    if(Renderer->DeviceContext1) ID3D11DeviceContext1_Release(Renderer->DeviceContext1);
+    if(Renderer->Device) ID3D11Device_Release(Renderer->Device);
+    
+    d3d11_info ZeroRenderer = {0};
+    *Renderer = ZeroRenderer;
+}
+
+static void 
+ActivateD3D11DebugInfo(ID3D11Device *Device)
 {
     ID3D11InfoQueue *Info;
     if(SUCCEEDED(IProvideClassInfo_QueryInterface(Device, &IID_ID3D11InfoQueue, (void**)&Info)))
@@ -33,7 +55,8 @@ static void ActivateD3D11DebugInfo(ID3D11Device *Device)
     }
 }
 
-static IDXGIFactory2 *AcquireDXGIFactory(ID3D11Device *Device)
+static IDXGIFactory2 *
+AcquireDXGIFactory(ID3D11Device *Device)
 {
     IDXGIFactory2 *Result = 0;
     
@@ -57,7 +80,8 @@ static IDXGIFactory2 *AcquireDXGIFactory(ID3D11Device *Device)
     return Result;
 }
 
-static IDXGISwapChain2 *AcquireDXGISwapChain(ID3D11Device *Device, HWND Window, int UseComputeShader)
+static IDXGISwapChain2 *
+AcquireDXGISwapChain(ID3D11Device *Device, HWND Window, int UseComputeShader)
 {
     IDXGISwapChain2 *Result = 0;
     
@@ -101,203 +125,19 @@ static IDXGISwapChain2 *AcquireDXGISwapChain(ID3D11Device *Device, HWND Window, 
     return Result;
 }
 
-
-static void ReleaseD3DCellBuffer(d3d11_renderer *Renderer)
+static void
+CheckMsaa(ID3D11Device *Device)
 {
-    if(Renderer->CellBuffer)
-    {
-        ID3D11Buffer_Release(Renderer->CellBuffer);
-        Renderer->CellBuffer = 0;
-    }
-    
-    if(Renderer->CellView)
-    {
-        ID3D11ShaderResourceView_Release(Renderer->CellView);
-        Renderer->CellView = 0;
-    }
+    // All D3D11 Capable devices support 4x MSAA with all render target formats (though differ quality levels)
+    UINT MsaaQuality;
+    HRESULT hr = ID3D11Device_CheckMultisampleQualityLevels(Device, DXGI_FORMAT_R8G8B8A8_UNORM, 4, &MsaaQuality);
+    Assert(SUCCEEDED(hr) && MsaaQuality > 0); // Because 4x MSAA is always supported, the returned quality should always > 0
 }
 
-static void ClearD3D11GlyphTexture(d3d11_renderer *Renderer)
-{
-    if(Renderer->GlyphTextureView)
-    {
-        FLOAT Zero[4] = {0};
-        ID3D11DeviceContext1_ClearView(Renderer->DeviceContext1, (ID3D11View *)Renderer->GlyphTextureView, Zero, 0, 0);
-    }
-}
-
-static void SetD3D11MaxCellCount(d3d11_renderer *Renderer, uint32_t Count)
-{
-    ReleaseD3DCellBuffer(Renderer);
-    
-    if(Renderer->Device)
-    {
-        D3D11_BUFFER_DESC CellBufferDesc =
-        {
-            .ByteWidth = Count * sizeof(renderer_cell),
-            .Usage = D3D11_USAGE_DYNAMIC,
-            .BindFlags = D3D11_BIND_SHADER_RESOURCE,
-            .CPUAccessFlags = D3D11_CPU_ACCESS_WRITE,
-            .MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED,
-            .StructureByteStride = sizeof(renderer_cell),
-        };
-        
-        if(SUCCEEDED(ID3D11Device_CreateBuffer(Renderer->Device, &CellBufferDesc, 0, &Renderer->CellBuffer)))
-        {
-            D3D11_SHADER_RESOURCE_VIEW_DESC CellViewDesc =
-            {
-                .ViewDimension = D3D11_SRV_DIMENSION_BUFFER,
-                .Buffer.FirstElement = 0,
-                .Buffer.NumElements = Count,
-            };
-            
-            ID3D11Device_CreateShaderResourceView(Renderer->Device, (ID3D11Resource *)Renderer->CellBuffer, &CellViewDesc, &Renderer->CellView);
-        }
-        
-        Renderer->MaxCellCount = Count;
-    }
-}
-
-static void ReleaseD3DGlyphCache(d3d11_renderer *Renderer)
-{
-    if(Renderer->GlyphTexture)
-    {
-        ID3D11ShaderResourceView_Release(Renderer->GlyphTexture);
-        Renderer->GlyphTexture = 0;
-    }
-    
-    if(Renderer->GlyphTextureView)
-    {
-        ID3D11ShaderResourceView_Release(Renderer->GlyphTextureView);
-        Renderer->GlyphTextureView = 0;
-    }
-}
-
-static void ReleaseD3DGlyphTransfer(d3d11_renderer *Renderer)
-{
-    //D2DRelease(&Renderer->DWriteRenderTarget, &Renderer->DWriteFillBrush);
-    
-    if(Renderer->GlyphTransfer)
-    {
-        ID3D11ShaderResourceView_Release(Renderer->GlyphTransfer);
-        Renderer->GlyphTransfer = 0;
-    }
-    
-    if(Renderer->GlyphTransferView)
-    {
-        ID3D11ShaderResourceView_Release(Renderer->GlyphTransferView);
-        Renderer->GlyphTransferView = 0;
-    }
-    
-    if(Renderer->GlyphTransferSurface)
-    {
-        IDXGISurface_Release(Renderer->GlyphTransferSurface);
-        Renderer->GlyphTransferSurface = 0;
-    }
-}
-
-static void SetD3D11GlyphCacheDim(d3d11_renderer *Renderer, uint32_t Width, uint32_t Height)
-{
-    ReleaseD3DGlyphCache(Renderer);
-    
-    if(Renderer->Device)
-    {
-        D3D11_TEXTURE2D_DESC TextureDesc =
-        {
-            .Width = Width,
-            .Height = Height,
-            .MipLevels = 1,
-            .ArraySize = 1,
-            .Format = DXGI_FORMAT_B8G8R8A8_UNORM,
-            .SampleDesc = { 1, 0 },
-            .Usage = D3D11_USAGE_DEFAULT,
-            .BindFlags = D3D11_BIND_SHADER_RESOURCE,
-        };
-        
-        if(SUCCEEDED(ID3D11Device_CreateTexture2D(Renderer->Device, &TextureDesc, NULL, &Renderer->GlyphTexture)))
-        {
-            ID3D11Device_CreateShaderResourceView(Renderer->Device, (ID3D11Resource*)Renderer->GlyphTexture, NULL, &Renderer->GlyphTextureView);
-        }
-    }
-}
-
-static void SetD3D11GlyphTransferDim(d3d11_renderer *Renderer, uint32_t Width, uint32_t Height)
-{
-    ReleaseD3DGlyphTransfer(Renderer);
-    
-    if(Renderer->Device)
-    {
-        D3D11_TEXTURE2D_DESC TextureDesc =
-        {
-            .Width = Width,
-            .Height = Height,
-            .MipLevels = 1,
-            .ArraySize = 1,
-            .Format = DXGI_FORMAT_B8G8R8A8_UNORM,
-            .SampleDesc = { 1, 0 },
-            .Usage = D3D11_USAGE_DEFAULT,
-            .BindFlags = D3D11_BIND_SHADER_RESOURCE|D3D11_BIND_RENDER_TARGET,
-        };
-        
-        if(SUCCEEDED(ID3D11Device_CreateTexture2D(Renderer->Device, &TextureDesc, 0, &Renderer->GlyphTransfer)))
-        {
-            ID3D11Device_CreateShaderResourceView(Renderer->Device, (ID3D11Resource *)Renderer->GlyphTransfer, 0, &Renderer->GlyphTransferView);
-            ID3D11Texture2D_QueryInterface(Renderer->GlyphTransfer, &IID_IDXGISurface, (void **)&Renderer->GlyphTransferSurface);
-            
-            D2DAcquire(Renderer->GlyphTransferSurface,
-                       &Renderer->DWriteRenderTarget,
-                       &Renderer->DWriteFillBrush);
-        }
-    }
-}
-
-
-static void ReleaseD3D11RenderTargets(d3d11_renderer *Renderer)
-{
-    if (Renderer->RenderView)
-    {
-        ID3D11UnorderedAccessView_Release(Renderer->RenderView);
-        Renderer->RenderView = 0;
-    }
-    
-    if (Renderer->RenderTarget)
-    {
-        ID3D11RenderTargetView_Release(Renderer->RenderTarget);
-        Renderer->RenderTarget = 0;
-    }
-}
-
-static void ReleaseD3D11Renderer(d3d11_renderer *Renderer)
-{
-    // TODO(casey): When you want to release a D3D11 device, do you have to release all the sub-components?
-    // Can you just release the main device and have all the sub-components release themselves?
-    
-    ReleaseD3DCellBuffer(Renderer);
-    ReleaseD3DGlyphCache(Renderer);
-    ReleaseD3DGlyphTransfer(Renderer);
-    ReleaseD3D11RenderTargets(Renderer);
-    
-    if(Renderer->ComputeShader) ID3D11ComputeShader_Release(Renderer->ComputeShader);
-    if(Renderer->PixelShader) ID3D11ComputeShader_Release(Renderer->PixelShader);
-    if(Renderer->VertexShader) ID3D11ComputeShader_Release(Renderer->VertexShader);
-    
-    if(Renderer->ConstantBuffer) ID3D11Buffer_Release(Renderer->ConstantBuffer);
-    
-    if(Renderer->RenderView) ID3D11UnorderedAccessView_Release(Renderer->RenderView);
-    if(Renderer->SwapChain) IDXGISwapChain2_Release(Renderer->SwapChain);
-    
-    if(Renderer->DeviceContext) ID3D11DeviceContext_Release(Renderer->DeviceContext);
-    if(Renderer->DeviceContext1) ID3D11DeviceContext1_Release(Renderer->DeviceContext1);
-    if(Renderer->Device) ID3D11Device_Release(Renderer->Device);
-    
-    d3d11_renderer ZeroRenderer = {0};
-    *Renderer = ZeroRenderer;
-}
-
-static d3d11_renderer 
+static d3d11_info
 AcquireD3D11Renderer(HWND Window, int EnableDebugging)
 {
-    d3d11_renderer Result = {0};
+    d3d11_info Result = {0};
     
     UINT Flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_SINGLETHREADED;
     if(EnableDebugging)
@@ -306,17 +146,22 @@ AcquireD3D11Renderer(HWND Window, int EnableDebugging)
     }
     
     D3D_FEATURE_LEVEL Levels[] = {D3D_FEATURE_LEVEL_11_0};
-    HRESULT hr = D3D11CreateDevice(0, D3D_DRIVER_TYPE_HARDWARE, 0, Flags, Levels, ARRAYSIZE(Levels), D3D11_SDK_VERSION,
+    HRESULT hr = D3D11CreateDevice(0, D3D_DRIVER_TYPE_HARDWARE, 0, 
+                                   Flags, Levels, ARRAYSIZE(Levels), D3D11_SDK_VERSION,
                                    &Result.Device, 0, &Result.DeviceContext);
     if(FAILED(hr))
     {
-        hr = D3D11CreateDevice(0, D3D_DRIVER_TYPE_WARP, 0, Flags, Levels, ARRAYSIZE(Levels), D3D11_SDK_VERSION,
+        hr = D3D11CreateDevice(0, D3D_DRIVER_TYPE_WARP, 0, 
+                               Flags, Levels, ARRAYSIZE(Levels), D3D11_SDK_VERSION,
                                &Result.Device, 0, &Result.DeviceContext);
     }
     
     if(SUCCEEDED(hr))
     {
-        if(SUCCEEDED(ID3D11DeviceContext1_QueryInterface(Result.DeviceContext, &IID_ID3D11DeviceContext1, (void **)&Result.DeviceContext1)))
+        CheckMsaa(Result.Device); // NOTE(Eric): Not really needed
+        
+        if(SUCCEEDED(ID3D11DeviceContext1_QueryInterface(Result.DeviceContext, 
+                                                         &IID_ID3D11DeviceContext1, (void **)&Result.DeviceContext1)))
         {
             if(EnableDebugging)
             {
@@ -348,7 +193,7 @@ AcquireD3D11Renderer(HWND Window, int EnableDebugging)
     
     if(!Result.SwapChain)
     {
-        ReleaseD3D11Renderer(&Result);
+        ReleaseD3D11Info(&Result);
     }
     
     return Result;

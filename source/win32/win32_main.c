@@ -550,6 +550,7 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR lp_cmd_line, int n_sh
     }
     
     // NOTE(rjf): OpenGL initialization
+    if(0)
     {
         global_device_context = GetDC(window_handle);
         if(!W32_InitOpenGL(&global_device_context, global_instance_handle))
@@ -560,8 +561,9 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR lp_cmd_line, int n_sh
     }
     
     // NOTE(Eric): DirectX Initialization
+    d3d11_info D3D11_Info;
     {
-        d3d11_renderer D3D11_Renderer = AcquireD3D11Renderer(window_handle, 1);
+        D3D11_Info = AcquireD3D11Renderer(window_handle, 1);
     }
     
     W32_LoadXInput();

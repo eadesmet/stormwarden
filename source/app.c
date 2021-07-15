@@ -41,7 +41,6 @@ APP_UPDATE// NOTE(Eric): PER FRAME
         os->resized = 0;
     }
     
-    local_persist b32 DepthClampingActive = 0;
     if (os->event_count > 0)
     {
         // NOTE(Eric): Not sure if this is how I'm supposed to handle events in the app,
@@ -74,5 +73,5 @@ APP_UPDATE// NOTE(Eric): PER FRAME
         }
     }
     
-    os->RefreshScreen();
+    //os->RefreshScreen();
 }
