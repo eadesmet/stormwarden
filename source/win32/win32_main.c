@@ -25,6 +25,8 @@
 #include "maths.h"
 #include "memory.h"
 #include "strings.h"
+// NOTE(Eric): DirectX
+#include "win32_directx.c"
 #include "os.h"
 #include "win32_timer.h"
 #include "language_layer.c"
@@ -64,8 +66,6 @@ W32_GamepadInput global_gamepads[W32_MAX_GAMEPADS];
 #include "win32_xinput.c"
 #include "win32_wasapi.c"
 #include "win32_opengl.c"
-
-#include "win32_directx.c"
 
 //~
 
@@ -561,9 +561,8 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR lp_cmd_line, int n_sh
     }
     
     // NOTE(Eric): DirectX Initialization
-    d3d11_info D3D11_Info;
     {
-        D3D11_Info = AcquireD3D11Renderer(window_handle, 1);
+        os->d3d = AcquireD3D11Renderer(window_handle, 1);
     }
     
     W32_LoadXInput();
@@ -666,6 +665,8 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR lp_cmd_line, int n_sh
     
     W32_AppCodeUnload(&win32_app_code);
     W32_CleanUpOpenGL(&global_device_context);
+    
+    ReleaseD3D11Info(&global_os.d3d);
     
     quit:;
     

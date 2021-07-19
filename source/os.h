@@ -186,6 +186,9 @@ struct OS_State
     // NOTE(Eric): Maybe don't want this? How would I pass a resize event to the game? is it in Events?
     b32 resized;
     
+    // NOTE(Eric): Getting d3d into app.c
+    d3d11_info d3d;
+    
     // NOTE(rjf): Event Queue and Input Data
     v2 mouse_position;
     u64 event_count;
