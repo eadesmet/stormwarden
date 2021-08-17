@@ -26,13 +26,20 @@ struct d3d11_info
     ID3D11DeviceContext1 *DeviceContext1;
     
     IDXGISwapChain *SwapChain;
-    HANDLE FrameLatencyWaitableObject;
     
-    ID3D11ComputeShader *ComputeShader;
-    ID3D11PixelShader *PixelShader;
+    // NOTE(Eric): I feel like this group is all tied closely together.
+    // So the question becomes: Do we need all of these things for each different type of 'object' we want to render?
+    ID3D11InputLayout *InputLayout;
+    ID3D11Buffer *VertexBuffer;
     ID3D11VertexShader *VertexShader;
-    
+    ID3D11PixelShader *PixelShader;
+    ID3D11SamplerState* Sampler;
+    ID3D11RasterizerState* RasterizerState;
+    ID3D11BlendState* BlendState;
+    ID3D11DepthStencilState* DepthState;
+    ID3D11ShaderResourceView* TextureView;
     ID3D11Buffer *ConstantBuffer;
+    
     ID3D11RenderTargetView *RenderTargetView;
     ID3D11DepthStencilView *DepthStencilView;
 };
@@ -42,7 +49,7 @@ D3D11RendererIsValid(d3d11_info *Renderer)
 {
     int Result = (Renderer->Device &&
                   Renderer->SwapChain &&
-                  Renderer->ComputeShader &&
+                  //Renderer->ComputeShader &&
                   Renderer->ConstantBuffer);
     
     return Result;
@@ -53,7 +60,7 @@ ReleaseD3D11Info(d3d11_info *Renderer)
 {
     // TODO(Eric): Does releasing the Device release all it's subcomponents?
     
-    if(Renderer->ComputeShader) ID3D11ComputeShader_Release(Renderer->ComputeShader);
+    //if(Renderer->ComputeShader) ID3D11ComputeShader_Release(Renderer->ComputeShader);
     if(Renderer->PixelShader) ID3D11ComputeShader_Release(Renderer->PixelShader);
     if(Renderer->VertexShader) ID3D11ComputeShader_Release(Renderer->VertexShader);
     
@@ -76,8 +83,11 @@ ActivateD3D11DebugInfo(ID3D11Device *Device)
     ID3D11InfoQueue *Info;
     if(SUCCEEDED(IProvideClassInfo_QueryInterface(Device, &IID_ID3D11InfoQueue, (void**)&Info)))
     {
-        ID3D11InfoQueue_SetBreakOnSeverity(Info, D3D11_MESSAGE_SEVERITY_CORRUPTION, TRUE);
-        ID3D11InfoQueue_SetBreakOnSeverity(Info, D3D11_MESSAGE_SEVERITY_ERROR, TRUE);
+        HRESULT hr = ID3D11InfoQueue_SetBreakOnSeverity(Info, D3D11_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+        AssertHR(hr);
+        
+        hr = ID3D11InfoQueue_SetBreakOnSeverity(Info, D3D11_MESSAGE_SEVERITY_ERROR, TRUE);
+        AssertHR(hr);
         
         ID3D11InfoQueue_Release(Info);
     }
@@ -171,6 +181,7 @@ AcquireD3D11Renderer(HWND Window, int EnableDebugging)
     // https://gist.github.com/mmozeiko/5e727f845db182d468a34d524508ad5f
     
     d3d11_info Result = {0};
+    d3d11_info *d3d = &Result;
     
     UINT Flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_SINGLETHREADED;
     if(EnableDebugging)
@@ -180,17 +191,6 @@ AcquireD3D11Renderer(HWND Window, int EnableDebugging)
     
     D3D_FEATURE_LEVEL Levels[] = {D3D_FEATURE_LEVEL_11_0};
     
-    /*
-    HRESULT hr = D3D11CreateDevice(0, D3D_DRIVER_TYPE_HARDWARE, 0, 
-                                   Flags, Levels, ARRAYSIZE(Levels), D3D11_SDK_VERSION,
-                                   &Result.Device, 0, &Result.DeviceContext);
-    if(FAILED(hr))
-    {
-        hr = D3D11CreateDevice(0, D3D_DRIVER_TYPE_WARP, 0, 
-                               Flags, Levels, ARRAYSIZE(Levels), D3D11_SDK_VERSION,
-                               &Result.Device, 0, &Result.DeviceContext);
-    }
-    */
     DXGI_SWAP_CHAIN_DESC desc =
     {
         .BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -209,42 +209,125 @@ AcquireD3D11Renderer(HWND Window, int EnableDebugging)
     };
     HRESULT hr = D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, Flags, Levels, ArrayCount(Levels),
                                                D3D11_SDK_VERSION, &desc, &Result.SwapChain, &Result.Device, NULL, &Result.DeviceContext);
-#if 0
-    if(SUCCEEDED(hr))
+    AssertHR(hr);
+    
+    ActivateD3D11DebugInfo(Result.Device);
+    
+    // disable stupid Alt+Enter changing monitor resolution to match window size
     {
-        CheckMsaa(Result.Device); // NOTE(Eric): Not really needed
-        
-        if(SUCCEEDED(ID3D11DeviceContext1_QueryInterface(Result.DeviceContext, 
-                                                         &IID_ID3D11DeviceContext1, (void **)&Result.DeviceContext1)))
-        {
-            if(EnableDebugging)
-            {
-                ActivateD3D11DebugInfo(Result.Device);
-            }
-            
-            Result.SwapChain = AcquireDXGISwapChain(Result.Device, Window, 0);
-            
-            if(Result.SwapChain)
-            {
-                Result.FrameLatencyWaitableObject = IDXGISwapChain2_GetFrameLatencyWaitableObject(Result.SwapChain);
-                
-                D3D11_BUFFER_DESC ConstantBufferDesc =
-                {
-                    .ByteWidth = sizeof(renderer_const_buffer),
-                    .Usage = D3D11_USAGE_DYNAMIC,
-                    .BindFlags = D3D11_BIND_CONSTANT_BUFFER,
-                    .CPUAccessFlags = D3D11_CPU_ACCESS_WRITE,
-                };
-                ID3D11Device_CreateBuffer(Result.Device, &ConstantBufferDesc, 0, &Result.ConstantBuffer);
-                
-                ID3D11Device_CreateComputeShader(Result.Device, ReftermCSShaderBytes, sizeof(ReftermCSShaderBytes), 0, &Result.ComputeShader);
-                ID3D11Device_CreatePixelShader(Result.Device, ReftermPSShaderBytes, sizeof(ReftermPSShaderBytes), 0, &Result.PixelShader);
-                ID3D11Device_CreateVertexShader(Result.Device, ReftermVSShaderBytes, sizeof(ReftermVSShaderBytes), 0, &Result.VertexShader);
-            }
-            
-        }
+        IDXGIFactory* factory;
+        hr = IDXGISwapChain_GetParent(Result.SwapChain, &IID_IDXGIFactory, (void**)&factory);
+        AssertHR(hr);
+        IDXGIFactory_MakeWindowAssociation(factory, Window, DXGI_MWA_NO_ALT_ENTER);
+        AssertHR(hr);
+        IDXGIFactory_Release(factory);
     }
-#endif
+    
+    // NOTE(Eric): Create Vertex Buffer and shaders was here
+    
+    // Create Texture View (tied to vertex shader, I think)
+    {
+        // checkerboard texture, with 50% transparency on black colors
+        unsigned int pixels[] =
+        {
+            0x80000000, 0xffffffff,
+            0xffffffff, 0x80000000,
+        };
+        UINT width = 2;
+        UINT height = 2;
+        
+        D3D11_TEXTURE2D_DESC desc =
+        {
+            .Width = width,
+            .Height = height,
+            .MipLevels = 1,
+            .ArraySize = 1,
+            .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+            .SampleDesc = { 1, 0 },
+            .Usage = D3D11_USAGE_IMMUTABLE,
+            .BindFlags = D3D11_BIND_SHADER_RESOURCE,
+        };
+        
+        D3D11_SUBRESOURCE_DATA data =
+        {
+            .pSysMem = pixels,
+            .SysMemPitch = width * sizeof(unsigned int),
+        };
+        
+        ID3D11Texture2D* texture;
+        hr = ID3D11Device_CreateTexture2D(d3d->Device, &desc, &data, &texture);
+        AssertHR(hr);
+        
+        hr = ID3D11Device_CreateShaderResourceView(d3d->Device, (ID3D11Resource*)texture, NULL, &d3d->TextureView);
+        AssertHR(hr);
+        
+        ID3D11Texture2D_Release(texture);
+    }
+    
+    // Create Sampler State
+    {
+        D3D11_SAMPLER_DESC desc =
+        {
+            .Filter = D3D11_FILTER_MIN_MAG_MIP_POINT,
+            .AddressU = D3D11_TEXTURE_ADDRESS_WRAP,
+            .AddressV = D3D11_TEXTURE_ADDRESS_WRAP,
+            .AddressW = D3D11_TEXTURE_ADDRESS_WRAP,
+        };
+        
+        hr = ID3D11Device_CreateSamplerState(d3d->Device, &desc, &d3d->Sampler);
+        AssertHR(hr);
+    }
+    
+    // Create Blend State
+    {
+        // enable alpha blending
+        D3D11_BLEND_DESC desc =
+        {
+            .RenderTarget[0] =
+            {
+                .BlendEnable = TRUE,
+                .SrcBlend = D3D11_BLEND_SRC_ALPHA,
+                .DestBlend = D3D11_BLEND_INV_SRC_ALPHA,
+                .BlendOp = D3D11_BLEND_OP_ADD,
+                .SrcBlendAlpha = D3D11_BLEND_SRC_ALPHA,
+                .DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA,
+                .BlendOpAlpha = D3D11_BLEND_OP_ADD,
+                .RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL,
+            },
+        };
+        hr = ID3D11Device_CreateBlendState(d3d->Device, &desc, &d3d->BlendState);
+        AssertHR(hr);
+    }
+    
+    // Create Rasterizer State
+    {
+        // disable culling
+        D3D11_RASTERIZER_DESC desc =
+        {
+            .FillMode = D3D11_FILL_SOLID,
+            .CullMode = D3D11_CULL_NONE,
+        };
+        hr = ID3D11Device_CreateRasterizerState(d3d->Device, &desc, &d3d->RasterizerState);
+        AssertHR(hr);
+    }
+    
+    // Create Depth State
+    {
+        // disable depth & stencil test
+        D3D11_DEPTH_STENCIL_DESC desc =
+        {
+            .DepthEnable = FALSE,
+            .DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL,
+            .DepthFunc = D3D11_COMPARISON_LESS,
+            .StencilEnable = FALSE,
+            .StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK,
+            .StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK,
+            // .FrontFace = ... 
+            // .BackFace = ...
+        };
+        hr = ID3D11Device_CreateDepthStencilState(d3d->Device, &desc, &d3d->DepthState);
+        AssertHR(hr);
+    }
     
     if(!Result.SwapChain)
     {
