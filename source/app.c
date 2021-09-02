@@ -20,12 +20,39 @@
 
 #include "entity.h"
 
+typedef struct render_info render_info;
+struct render_info
+{
+    ID3D11InputLayout *InputLayout;
+    ID3D11Buffer *VertexBuffer;
+    ID3D11VertexShader *VertexShader;
+    ID3D11PixelShader *PixelShader;
+    ID3D11Buffer *ConstantBuffer;
+};
+
+typedef struct square square;
+struct square
+{
+    render_info Info;
+
+    vertex_data Data[4];
+};
+
+typedef struct game_state game_state;
+struct game_state
+{
+    square Square;
+};
+global game_state G_GameState = {0};
+
+
 global LARGE_INTEGER G_Freq, G_c1;
 
 APP_PERMANENT_LOAD// NOTE(Eric): INIT
 {
     os = os_;
     d3d11_info *d3d = &os->d3d;
+    game_state *GameState = &G_GameState;
     HRESULT hr;
     
     // TODO(Eric): Replace this with our own Timer, based on these calls and luna's timer
@@ -55,28 +82,31 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
         d3d->VertexBufferCount++;
     }
 
-    // NOTE(Eric): Attempting to draw another thing.
+    // NOTE(Eric): Attempting to draw a Square.
     {
-        vertex_data data[] =
+        vertex_data my_data[] =
         {
-            // Position, UV, Color
-            { { -1.00f, -1.00f }, { 25.0f, 50.0f }, { 1, 0, 0 } }, // Top-left?
-            { { +0.50f, -0.50f }, {  0.0f,  0.0f }, { 0, 1, 0 } }, // Center?
-            { { -1.00f, -0.00f }, { 50.0f,  0.0f }, { 0, 0, 1 } }, // Center-Left?
+            { { -1.00f, +1.00f }, {  0.0f, 50.0f }, { 1, 1, 1 } }, // Top-left?
+            { { +1.00f, +1.00f }, { 50.0f, 50.0f }, { 1, 1, 1 } }, // Top-right?
+            { { -1.00f, -1.00f }, {  0.0f,  0.0f }, { 1, 1, 1 } }, // Bottom-left?
+            { { +1.00f, -1.00f }, { 50.0f,  0.0f }, { 1, 1, 1 } }  // Bottom-right?
         };
+        for (int Index = 0; Index < 4; Index++)
+        {
+            GameState->Square.Data[Index] = my_data[Index];
+        }
+
 
         D3D11_BUFFER_DESC desc =
         {
-            .ByteWidth = sizeof(data),
+            .ByteWidth = sizeof(GameState->Square.Data),
             .Usage = D3D11_USAGE_IMMUTABLE,
             .BindFlags = D3D11_BIND_VERTEX_BUFFER,
         };
 
-        D3D11_SUBRESOURCE_DATA initial = { .pSysMem = data };
-        hr = ID3D11Device_CreateBuffer(d3d->Device, &desc, &initial, &d3d->VertexBuffer[d3d->VertexBufferCount]);
+        D3D11_SUBRESOURCE_DATA initial = { .pSysMem = GameState->Square.Data };
+        hr = ID3D11Device_CreateBuffer(d3d->Device, &desc, &initial, &GameState->Square.Info.VertexBuffer);
         AssertHR(hr);
-
-        d3d->VertexBufferCount++;
     }
     
     // NOTE(Eric): Set InputLayout and create shaders
@@ -102,14 +132,23 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
         AssertHR(hr);
 
 
-
         // NOTE(Eric): Try to compile my own shaders
-#include "shaders/d3d11_eric_vshader.h"
-        hr = ID3D11Device_CreateVertexShader(d3d->Device, d3d11_eric_vshader, sizeof(d3d11_eric_vshader), NULL, &d3d->VertexShader[d3d->VertexShaderCount++]);
+        D3D11_INPUT_ELEMENT_DESC square_desc[] =
+        {
+            { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,       0, offsetof(struct vertex_data, Position),      D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, offsetof(struct vertex_data, UV),            D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "COLOR",    0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(struct vertex_data, Color),         D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        };
+
+#include "shaders/d3d11_square_vshader.h"
+        hr = ID3D11Device_CreateVertexShader(d3d->Device, d3d11_square_vshader, sizeof(d3d11_square_vshader), NULL, &GameState->Square.Info.VertexShader);
         AssertHR(hr);
 
-#include "shaders/d3d11_eric_pshader.h"
-        hr = ID3D11Device_CreatePixelShader(d3d->Device, d3d11_eric_pshader, sizeof(d3d11_eric_pshader), NULL, &d3d->PixelShader[d3d->PixelShaderCount++]);
+#include "shaders/d3d11_square_pshader.h"
+        hr = ID3D11Device_CreatePixelShader(d3d->Device, d3d11_square_pshader, sizeof(d3d11_square_pshader), NULL, &GameState->Square.Info.PixelShader);
+        AssertHR(hr);
+
+        hr = ID3D11Device_CreateInputLayout(d3d->Device, square_desc, _countof(square_desc), d3d11_square_vshader, sizeof(d3d11_square_vshader), &GameState->Square.Info.InputLayout);
         AssertHR(hr);
 
     }
@@ -141,6 +180,7 @@ APP_HOT_UNLOAD {}
 APP_UPDATE// NOTE(Eric): PER FRAME
 {
     d3d11_info *d3d = &os->d3d;
+    game_state *GameState = &G_GameState;
     
     HRESULT hr;
     int width = os->window_size.width;
@@ -311,17 +351,17 @@ APP_UPDATE// NOTE(Eric): PER FRAME
             ID3D11DeviceContext_Draw(d3d->DeviceContext, 3, 0);
 
             {
-                // NOTE(Eric): Try to draw another thing. Sweet, this worked. But are all of these steps necessary?
+                // NOTE(Eric): Try to draw another thing.
                 // Input Assembler
-                ID3D11DeviceContext_IASetInputLayout(d3d->DeviceContext, d3d->InputLayout);
+                ID3D11DeviceContext_IASetInputLayout(d3d->DeviceContext, GameState->Square.Info.InputLayout);
                 ID3D11DeviceContext_IASetPrimitiveTopology(d3d->DeviceContext, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
                 UINT stride = sizeof(vertex_data);
                 UINT offset = 0;
-                ID3D11DeviceContext_IASetVertexBuffers(d3d->DeviceContext, 0, 1, &d3d->VertexBuffer[1], &stride, &offset);
+                ID3D11DeviceContext_IASetVertexBuffers(d3d->DeviceContext, 0, 1, &GameState->Square.Info.VertexBuffer, &stride, &offset);
 
                 // Vertex Shader
                 //ID3D11DeviceContext_VSSetConstantBuffers(d3d->DeviceContext, 0, 1, &d3d->ConstantBuffer);
-                ID3D11DeviceContext_VSSetShader(d3d->DeviceContext, d3d->VertexShader[1], NULL, 0);
+                ID3D11DeviceContext_VSSetShader(d3d->DeviceContext, GameState->Square.Info.VertexShader, NULL, 0);
 
                 // Rasterizer Stage
                 ID3D11DeviceContext_RSSetViewports(d3d->DeviceContext, 1, &viewport);
@@ -330,15 +370,25 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                 // Pixel Shader
                 //ID3D11DeviceContext_PSSetSamplers(d3d->DeviceContext, 0, 1, &d3d->Sampler);
                 //ID3D11DeviceContext_PSSetShaderResources(d3d->DeviceContext, 0, 1, &d3d->TextureView);
-                ID3D11DeviceContext_PSSetShader(d3d->DeviceContext, d3d->PixelShader[1], NULL, 0);
+                ID3D11DeviceContext_PSSetShader(d3d->DeviceContext, GameState->Square.Info.PixelShader, NULL, 0);
 
                 // Output Merger
                 ID3D11DeviceContext_OMSetBlendState(d3d->DeviceContext, d3d->BlendState, NULL, ~0U);
                 ID3D11DeviceContext_OMSetDepthStencilState(d3d->DeviceContext, d3d->DepthState, 0);
                 ID3D11DeviceContext_OMSetRenderTargets(d3d->DeviceContext, 1, &d3d->RenderTargetView, d3d->DepthStencilView);
 
+                // TODO(Eric): DrawIndexed isn't working..
+                // My idea was to draw the first 3 vertices, then draw the next 3 starting at index 1
+                // But it doesn't draw anything.
+                // Wasn't there somewhere in the vertexbuffer where I tell it that it has this # of vertices?
+                // Also, this code is quite messy, but I'm trying to figure things out.
+                // Once I know what it takes to draw a thing, I can clean it up.
+                // Also, I need to read/learn more about drawing multiple things,
+                // because I seem to recall that we don't want to set up a vertex buffer for each one.
                 // draw 3 vertices
                 ID3D11DeviceContext_Draw(d3d->DeviceContext, 3, 0);
+                //ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 3, 0, 0);
+                //ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 3, 1, 0);
             }
             
             

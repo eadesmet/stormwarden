@@ -18,10 +18,10 @@ start /b /wait "" "fxc.exe"  /nologo /T vs_5_0 /E vs /Od /WX /Zpc /Ges /Fh d3d11
 
 start /b /wait "" "fxc.exe"  /nologo /T ps_5_0 /E ps /Od /WX /Zpc /Ges /Fh d3d11_pshader.h /Vn d3d11_pshader /Qstrip_reflect /Qstrip_debug /Qstrip_priv shaders.hlsl
 
-REM NOTE(Eric): My test Shader
-start /b /wait "" "fxc.exe"  /nologo /T vs_5_0 /E vs /Od /WX /Zpc /Ges /Fh d3d11_eric_vshader.h /Vn d3d11_eric_vshader /Qstrip_reflect /Qstrip_debug /Qstrip_priv ericshaders.hlsl
+REM NOTE(Eric): My square Shader
+start /b /wait "" "fxc.exe"  /nologo /T vs_5_0 /E vs /Od /WX /Zpc /Ges /Fh d3d11_square_vshader.h /Vn d3d11_square_vshader /Qstrip_reflect /Qstrip_debug /Qstrip_priv square_shader.hlsl
 
-start /b /wait "" "fxc.exe"  /nologo /T ps_5_0 /E ps /Od /WX /Zpc /Ges /Fh d3d11_eric_pshader.h /Vn d3d11_eric_pshader /Qstrip_reflect /Qstrip_debug /Qstrip_priv ericshaders.hlsl
+start /b /wait "" "fxc.exe"  /nologo /T ps_5_0 /E ps /Od /WX /Zpc /Ges /Fh d3d11_square_pshader.h /Vn d3d11_square_pshader /Qstrip_reflect /Qstrip_debug /Qstrip_priv square_shader.hlsl
 
 
 popd

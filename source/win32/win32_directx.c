@@ -54,28 +54,6 @@ struct d3d11_info
 };
 
 
-typedef struct render_info render_info;
-struct render_info
-{
-    ID3D11InputLayout *InputLayout;
-    ID3D11Buffer *VertexBuffer;
-    ID3D11VertexShader *VertexShader;
-    ID3D11PixelShader *PixelShader;
-    ID3D11Buffer *ConstantBuffer;
-};
-
-typedef struct square square;
-struct square
-{
-    render_info Info;
-
-    v2 Pos;   // NOTE(Eric): Top-left corner?
-    u32 Size; // NOTE(Eric): Length in x and y (square, not rect)
-    v2 UV;
-    v4 Color;
-};
-
-
 static int 
 D3D11RendererIsValid(d3d11_info *Renderer)
 {
