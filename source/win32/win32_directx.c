@@ -30,9 +30,18 @@ struct d3d11_info
     // NOTE(Eric): I feel like this group is all tied closely together.
     // So the question becomes: Do we need all of these things for each different type of 'object' we want to render?
     ID3D11InputLayout *InputLayout;
-    ID3D11Buffer *VertexBuffer;
-    ID3D11VertexShader *VertexShader;
-    ID3D11PixelShader *PixelShader;
+
+    // NOTE(Eric): Testing drawing multiple things
+    //ID3D11Buffer *VertexBuffer;
+    ID3D11Buffer *VertexBuffer[16];
+    u16 VertexBufferCount;
+
+    ID3D11VertexShader *VertexShader[16];
+    u16 VertexShaderCount;
+
+    ID3D11PixelShader *PixelShader[16];
+    u16 PixelShaderCount;
+
     ID3D11SamplerState* Sampler;
     ID3D11RasterizerState* RasterizerState;
     ID3D11BlendState* BlendState;
@@ -43,6 +52,29 @@ struct d3d11_info
     ID3D11RenderTargetView *RenderTargetView;
     ID3D11DepthStencilView *DepthStencilView;
 };
+
+
+typedef struct render_info render_info;
+struct render_info
+{
+    ID3D11InputLayout *InputLayout;
+    ID3D11Buffer *VertexBuffer;
+    ID3D11VertexShader *VertexShader;
+    ID3D11PixelShader *PixelShader;
+    ID3D11Buffer *ConstantBuffer;
+};
+
+typedef struct square square;
+struct square
+{
+    render_info Info;
+
+    v2 Pos;   // NOTE(Eric): Top-left corner?
+    u32 Size; // NOTE(Eric): Length in x and y (square, not rect)
+    v2 UV;
+    v4 Color;
+};
+
 
 static int 
 D3D11RendererIsValid(d3d11_info *Renderer)
@@ -61,8 +93,9 @@ ReleaseD3D11Info(d3d11_info *Renderer)
     // TODO(Eric): Does releasing the Device release all it's subcomponents?
     
     //if(Renderer->ComputeShader) ID3D11ComputeShader_Release(Renderer->ComputeShader);
-    if(Renderer->PixelShader) ID3D11ComputeShader_Release(Renderer->PixelShader);
-    if(Renderer->VertexShader) ID3D11ComputeShader_Release(Renderer->VertexShader);
+
+    //if(Renderer->PixelShader) ID3D11ComputeShader_Release(Renderer->PixelShader);
+    //if(Renderer->VertexShader) ID3D11ComputeShader_Release(Renderer->VertexShader);
     
     if(Renderer->ConstantBuffer) ID3D11Buffer_Release(Renderer->ConstantBuffer);
     

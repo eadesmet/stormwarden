@@ -2,7 +2,7 @@
 	"folders":
 	[
 		{
-			"path": "source",
+			"path": "C:\\_Eric\\code\\d3d\\stormwarden\\source",
 			"file_exclude_patterns": ["*.llk", "*.pdb", "*.obj", "*.exe"]
 		}
 	],
@@ -11,26 +11,12 @@
 		{
 			"name": "Build",
 			"selector": "source.c",
-			"working_dir": "@project_path", //$project_path
-			"quiet": true,
-			"shell": true,
+			"working_dir": "$project_path",
+//			"quiet": true,
+//			"shell": true,
 			"file_regex": "^ *([A-z]:.*)[(]([0-9]+)[)]",
 
-			"cmd": "dir",//"proc\\win\\cl.bat",
-
-/*
-			"variants":
-			[
-				{
-					"name": "Run",
-					"cmd": "run"
-				},
-				{
-					"name": "Build and Run",
-					"cmd": ["proc\\bin\\cl.bat", "&&", "run"]
-				}
-			]
-			*/
+			"shell_cmd": "build"
 		}
 	]
 }

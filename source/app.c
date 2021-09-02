@@ -49,8 +49,34 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
         };
         
         D3D11_SUBRESOURCE_DATA initial = { .pSysMem = data };
-        hr = ID3D11Device_CreateBuffer(d3d->Device, &desc, &initial, &d3d->VertexBuffer);
+        hr = ID3D11Device_CreateBuffer(d3d->Device, &desc, &initial, &d3d->VertexBuffer[d3d->VertexBufferCount]);
         AssertHR(hr);
+
+        d3d->VertexBufferCount++;
+    }
+
+    // NOTE(Eric): Attempting to draw another thing.
+    {
+        vertex_data data[] =
+        {
+            // Position, UV, Color
+            { { -1.00f, -1.00f }, { 25.0f, 50.0f }, { 1, 0, 0 } }, // Top-left?
+            { { +0.50f, -0.50f }, {  0.0f,  0.0f }, { 0, 1, 0 } }, // Center?
+            { { -1.00f, -0.00f }, { 50.0f,  0.0f }, { 0, 0, 1 } }, // Center-Left?
+        };
+
+        D3D11_BUFFER_DESC desc =
+        {
+            .ByteWidth = sizeof(data),
+            .Usage = D3D11_USAGE_IMMUTABLE,
+            .BindFlags = D3D11_BIND_VERTEX_BUFFER,
+        };
+
+        D3D11_SUBRESOURCE_DATA initial = { .pSysMem = data };
+        hr = ID3D11Device_CreateBuffer(d3d->Device, &desc, &initial, &d3d->VertexBuffer[d3d->VertexBufferCount]);
+        AssertHR(hr);
+
+        d3d->VertexBufferCount++;
     }
     
     // NOTE(Eric): Set InputLayout and create shaders
@@ -65,15 +91,27 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
         
         // NOTE(Eric): Compiled shader files with fxc.exe
 #include "shaders/d3d11_vshader.h"
-        hr = ID3D11Device_CreateVertexShader(d3d->Device, d3d11_vshader, sizeof(d3d11_vshader), NULL, &d3d->VertexShader);
+        hr = ID3D11Device_CreateVertexShader(d3d->Device, d3d11_vshader, sizeof(d3d11_vshader), NULL, &d3d->VertexShader[d3d->VertexShaderCount++]);
         AssertHR(hr);
         
 #include "shaders/d3d11_pshader.h"
-        hr = ID3D11Device_CreatePixelShader(d3d->Device, d3d11_pshader, sizeof(d3d11_pshader), NULL, &d3d->PixelShader);
+        hr = ID3D11Device_CreatePixelShader(d3d->Device, d3d11_pshader, sizeof(d3d11_pshader), NULL, &d3d->PixelShader[d3d->PixelShaderCount++]);
         AssertHR(hr);
         
         hr = ID3D11Device_CreateInputLayout(d3d->Device, desc, _countof(desc), d3d11_vshader, sizeof(d3d11_vshader), &d3d->InputLayout);
         AssertHR(hr);
+
+
+
+        // NOTE(Eric): Try to compile my own shaders
+#include "shaders/d3d11_eric_vshader.h"
+        hr = ID3D11Device_CreateVertexShader(d3d->Device, d3d11_eric_vshader, sizeof(d3d11_eric_vshader), NULL, &d3d->VertexShader[d3d->VertexShaderCount++]);
+        AssertHR(hr);
+
+#include "shaders/d3d11_eric_pshader.h"
+        hr = ID3D11Device_CreatePixelShader(d3d->Device, d3d11_eric_pshader, sizeof(d3d11_eric_pshader), NULL, &d3d->PixelShader[d3d->PixelShaderCount++]);
+        AssertHR(hr);
+
     }
     
     
@@ -249,20 +287,20 @@ APP_UPDATE// NOTE(Eric): PER FRAME
             ID3D11DeviceContext_IASetPrimitiveTopology(d3d->DeviceContext, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             UINT stride = sizeof(vertex_data);
             UINT offset = 0;
-            ID3D11DeviceContext_IASetVertexBuffers(d3d->DeviceContext, 0, 1, &d3d->VertexBuffer, &stride, &offset);
+            ID3D11DeviceContext_IASetVertexBuffers(d3d->DeviceContext, 0, 1, &d3d->VertexBuffer[0], &stride, &offset);
             
             // Vertex Shader
             ID3D11DeviceContext_VSSetConstantBuffers(d3d->DeviceContext, 0, 1, &d3d->ConstantBuffer);
-            ID3D11DeviceContext_VSSetShader(d3d->DeviceContext, d3d->VertexShader, NULL, 0);
+            ID3D11DeviceContext_VSSetShader(d3d->DeviceContext, d3d->VertexShader[0], NULL, 0);
             
             // Rasterizer Stage
             ID3D11DeviceContext_RSSetViewports(d3d->DeviceContext, 1, &viewport);
             ID3D11DeviceContext_RSSetState(d3d->DeviceContext, d3d->RasterizerState);
-            
+
             // Pixel Shader
             ID3D11DeviceContext_PSSetSamplers(d3d->DeviceContext, 0, 1, &d3d->Sampler);
             ID3D11DeviceContext_PSSetShaderResources(d3d->DeviceContext, 0, 1, &d3d->TextureView);
-            ID3D11DeviceContext_PSSetShader(d3d->DeviceContext, d3d->PixelShader, NULL, 0);
+            ID3D11DeviceContext_PSSetShader(d3d->DeviceContext, d3d->PixelShader[0], NULL, 0);
             
             // Output Merger
             ID3D11DeviceContext_OMSetBlendState(d3d->DeviceContext, d3d->BlendState, NULL, ~0U);
@@ -271,6 +309,37 @@ APP_UPDATE// NOTE(Eric): PER FRAME
             
             // draw 3 vertices
             ID3D11DeviceContext_Draw(d3d->DeviceContext, 3, 0);
+
+            {
+                // NOTE(Eric): Try to draw another thing. Sweet, this worked. But are all of these steps necessary?
+                // Input Assembler
+                ID3D11DeviceContext_IASetInputLayout(d3d->DeviceContext, d3d->InputLayout);
+                ID3D11DeviceContext_IASetPrimitiveTopology(d3d->DeviceContext, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+                UINT stride = sizeof(vertex_data);
+                UINT offset = 0;
+                ID3D11DeviceContext_IASetVertexBuffers(d3d->DeviceContext, 0, 1, &d3d->VertexBuffer[1], &stride, &offset);
+
+                // Vertex Shader
+                //ID3D11DeviceContext_VSSetConstantBuffers(d3d->DeviceContext, 0, 1, &d3d->ConstantBuffer);
+                ID3D11DeviceContext_VSSetShader(d3d->DeviceContext, d3d->VertexShader[1], NULL, 0);
+
+                // Rasterizer Stage
+                ID3D11DeviceContext_RSSetViewports(d3d->DeviceContext, 1, &viewport);
+                ID3D11DeviceContext_RSSetState(d3d->DeviceContext, d3d->RasterizerState);
+
+                // Pixel Shader
+                //ID3D11DeviceContext_PSSetSamplers(d3d->DeviceContext, 0, 1, &d3d->Sampler);
+                //ID3D11DeviceContext_PSSetShaderResources(d3d->DeviceContext, 0, 1, &d3d->TextureView);
+                ID3D11DeviceContext_PSSetShader(d3d->DeviceContext, d3d->PixelShader[1], NULL, 0);
+
+                // Output Merger
+                ID3D11DeviceContext_OMSetBlendState(d3d->DeviceContext, d3d->BlendState, NULL, ~0U);
+                ID3D11DeviceContext_OMSetDepthStencilState(d3d->DeviceContext, d3d->DepthState, 0);
+                ID3D11DeviceContext_OMSetRenderTargets(d3d->DeviceContext, 1, &d3d->RenderTargetView, d3d->DepthStencilView);
+
+                // draw 3 vertices
+                ID3D11DeviceContext_Draw(d3d->DeviceContext, 3, 0);
+            }
             
             
             hr = IDXGISwapChain_Present(d3d->SwapChain, os->vsync, 0);
@@ -292,3 +361,58 @@ APP_UPDATE// NOTE(Eric): PER FRAME
     
     //os->RefreshScreen();
 }
+
+
+
+
+
+
+
+
+
+
+// NOTE(Eric): Alright, so drawing multiple things goes like this:
+/*
+// Draw cubes
+{
+    d3d11DeviceContext->IASetInputLayout(blinnPhongInputLayout);
+    d3d11DeviceContext->VSSetShader(blinnPhongVertexShader, nullptr, 0);
+    d3d11DeviceContext->PSSetShader(blinnPhongPixelShader, nullptr, 0);
+
+    d3d11DeviceContext->PSSetShaderResources(0, 1, &textureView);
+    d3d11DeviceContext->PSSetSamplers(0, 1, &samplerState);
+
+    d3d11DeviceContext->VSSetConstantBuffers(0, 1, &blinnPhongVSConstantBuffer);
+    d3d11DeviceContext->PSSetConstantBuffers(0, 1, &blinnPhongPSConstantBuffer);
+
+    // Update pixel shader constant buffer
+    {
+        D3D11_MAPPED_SUBRESOURCE mappedSubresource;
+        d3d11DeviceContext->Map(blinnPhongPSConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubresource);
+        BlinnPhongPSConstants* constants = (BlinnPhongPSConstants*)(mappedSubresource.pData);
+        constants->dirLight.dirEye = normalise(float4{1.f, 1.f, 1.f, 0.f});
+        constants->dirLight.color = {0.7f, 0.8f, 0.2f, 1.f};
+        for(int i=0; i<NUM_LIGHTS; ++i){
+            constants->pointLights[i].posEye = pointLightPosEye[i];
+            constants->pointLights[i].color = lightColor[i];
+        }
+        d3d11DeviceContext->Unmap(blinnPhongPSConstantBuffer, 0);
+    }
+
+    for(int i=0; i<NUM_CUBES; ++i)
+    {
+        // Update vertex shader constant buffer
+        D3D11_MAPPED_SUBRESOURCE mappedSubresource;
+        d3d11DeviceContext->Map(blinnPhongVSConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubresource);
+        BlinnPhongVSConstants* constants = (BlinnPhongVSConstants*)(mappedSubresource.pData);
+        constants->modelViewProj = cubeModelViewMats[i] * perspectiveMat;
+        constants->modelView = cubeModelViewMats[i];
+        constants->normalMatrix = cubeNormalMats[i];
+        d3d11DeviceContext->Unmap(blinnPhongVSConstantBuffer, 0);
+
+        d3d11DeviceContext->DrawIndexed(cubeNumIndices, 0, 0);
+    }
+}
+
+
+*/

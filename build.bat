@@ -17,6 +17,13 @@ pushd source\shaders
 start /b /wait "" "fxc.exe"  /nologo /T vs_5_0 /E vs /Od /WX /Zpc /Ges /Fh d3d11_vshader.h /Vn d3d11_vshader /Qstrip_reflect /Qstrip_debug /Qstrip_priv shaders.hlsl
 
 start /b /wait "" "fxc.exe"  /nologo /T ps_5_0 /E ps /Od /WX /Zpc /Ges /Fh d3d11_pshader.h /Vn d3d11_pshader /Qstrip_reflect /Qstrip_debug /Qstrip_priv shaders.hlsl
+
+REM NOTE(Eric): My test Shader
+start /b /wait "" "fxc.exe"  /nologo /T vs_5_0 /E vs /Od /WX /Zpc /Ges /Fh d3d11_eric_vshader.h /Vn d3d11_eric_vshader /Qstrip_reflect /Qstrip_debug /Qstrip_priv ericshaders.hlsl
+
+start /b /wait "" "fxc.exe"  /nologo /T ps_5_0 /E ps /Od /WX /Zpc /Ges /Fh d3d11_eric_pshader.h /Vn d3d11_eric_pshader /Qstrip_reflect /Qstrip_debug /Qstrip_priv ericshaders.hlsl
+
+
 popd
 
 if not exist build mkdir build
