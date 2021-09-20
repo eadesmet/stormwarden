@@ -25,6 +25,7 @@ struct render_info
 {
     ID3D11InputLayout *InputLayout;
     ID3D11Buffer *VertexBuffer;
+    ID3D11Buffer *IndexBuffer;
     ID3D11VertexShader *VertexShader;
     ID3D11PixelShader *PixelShader;
     ID3D11Buffer *ConstantBuffer;
@@ -34,7 +35,7 @@ typedef struct square square;
 struct square
 {
     render_info Info;
-
+    
     vertex_data Data[4];
 };
 
@@ -78,35 +79,42 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
         D3D11_SUBRESOURCE_DATA initial = { .pSysMem = data };
         hr = ID3D11Device_CreateBuffer(d3d->Device, &desc, &initial, &d3d->VertexBuffer[d3d->VertexBufferCount]);
         AssertHR(hr);
-
+        
         d3d->VertexBufferCount++;
     }
-
+    
     // NOTE(Eric): Attempting to draw a Square.
     {
         vertex_data my_data[] =
         {
-            { { -1.00f, +1.00f }, {  0.0f, 50.0f }, { 1, 1, 1 } }, // Top-left?
-            { { +1.00f, +1.00f }, { 50.0f, 50.0f }, { 1, 1, 1 } }, // Top-right?
-            { { -1.00f, -1.00f }, {  0.0f,  0.0f }, { 1, 1, 1 } }, // Bottom-left?
-            { { +1.00f, -1.00f }, { 50.0f,  0.0f }, { 1, 1, 1 } }  // Bottom-right?
+            { { -0.75f, +0.50f }, { 25.0f, 50.0f }, { 1, 0, 0 } }, // Top-left
+            { { +0.75f, -0.50f }, {  0.0f,  0.0f }, { 0, 1, 0 } }, // Bottom-right
+            { { -0.75f, -0.50f }, { 50.0f,  0.0f }, { 0, 0, 1 } }, // Bottom-left
+            { { +0.75f, +0.50f }, { 50.0f,  0.0f }, { 0, 0, 1 } }, // Top-right
         };
-        for (int Index = 0; Index < 4; Index++)
-        {
-            GameState->Square.Data[Index] = my_data[Index];
-        }
-
-
+        
         D3D11_BUFFER_DESC desc =
         {
             .ByteWidth = sizeof(GameState->Square.Data),
             .Usage = D3D11_USAGE_IMMUTABLE,
             .BindFlags = D3D11_BIND_VERTEX_BUFFER,
         };
-
-        D3D11_SUBRESOURCE_DATA initial = { .pSysMem = GameState->Square.Data };
+        
+        D3D11_SUBRESOURCE_DATA initial = { .pSysMem = my_data };
         hr = ID3D11Device_CreateBuffer(d3d->Device, &desc, &initial, &GameState->Square.Info.VertexBuffer);
         AssertHR(hr);
+        
+        // Set up an Index Buffer for the square
+        u32 indices[] = { 0, 1, 2, 0, 1, 3 };
+        
+        D3D11_BUFFER_DESC IndexDesc = 
+        {
+            .ByteWidth = sizeof(my_data),
+            .Usage = D3D11_USAGE_DEFAULT,
+            .BindFlags = D3D11_BIND_INDEX_BUFFER,
+        };
+        D3D11_SUBRESOURCE_DATA IndexDataBuffer = { .pSysMem = indices };
+        hr = ID3D11Device_CreateBuffer(d3d->Device, &IndexDesc, &IndexDataBuffer, &GameState->Square.Info.IndexBuffer);
     }
     
     // NOTE(Eric): Set InputLayout and create shaders
@@ -130,8 +138,8 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
         
         hr = ID3D11Device_CreateInputLayout(d3d->Device, desc, _countof(desc), d3d11_vshader, sizeof(d3d11_vshader), &d3d->InputLayout);
         AssertHR(hr);
-
-
+        
+        
         // NOTE(Eric): Try to compile my own shaders
         D3D11_INPUT_ELEMENT_DESC square_desc[] =
         {
@@ -139,18 +147,18 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
             { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, offsetof(struct vertex_data, UV),            D3D11_INPUT_PER_VERTEX_DATA, 0 },
             { "COLOR",    0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(struct vertex_data, Color),         D3D11_INPUT_PER_VERTEX_DATA, 0 },
         };
-
+        
 #include "shaders/d3d11_square_vshader.h"
         hr = ID3D11Device_CreateVertexShader(d3d->Device, d3d11_square_vshader, sizeof(d3d11_square_vshader), NULL, &GameState->Square.Info.VertexShader);
         AssertHR(hr);
-
+        
 #include "shaders/d3d11_square_pshader.h"
         hr = ID3D11Device_CreatePixelShader(d3d->Device, d3d11_square_pshader, sizeof(d3d11_square_pshader), NULL, &GameState->Square.Info.PixelShader);
         AssertHR(hr);
-
+        
         hr = ID3D11Device_CreateInputLayout(d3d->Device, square_desc, _countof(square_desc), d3d11_square_vshader, sizeof(d3d11_square_vshader), &GameState->Square.Info.InputLayout);
         AssertHR(hr);
-
+        
     }
     
     
@@ -336,7 +344,7 @@ APP_UPDATE// NOTE(Eric): PER FRAME
             // Rasterizer Stage
             ID3D11DeviceContext_RSSetViewports(d3d->DeviceContext, 1, &viewport);
             ID3D11DeviceContext_RSSetState(d3d->DeviceContext, d3d->RasterizerState);
-
+            
             // Pixel Shader
             ID3D11DeviceContext_PSSetSamplers(d3d->DeviceContext, 0, 1, &d3d->Sampler);
             ID3D11DeviceContext_PSSetShaderResources(d3d->DeviceContext, 0, 1, &d3d->TextureView);
@@ -349,7 +357,7 @@ APP_UPDATE// NOTE(Eric): PER FRAME
             
             // draw 3 vertices
             ID3D11DeviceContext_Draw(d3d->DeviceContext, 3, 0);
-
+            
             {
                 // NOTE(Eric): Try to draw another thing.
                 // Input Assembler
@@ -358,25 +366,26 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                 UINT stride = sizeof(vertex_data);
                 UINT offset = 0;
                 ID3D11DeviceContext_IASetVertexBuffers(d3d->DeviceContext, 0, 1, &GameState->Square.Info.VertexBuffer, &stride, &offset);
-
+                ID3D11DeviceContext_IASetIndexBuffer(d3d->DeviceContext, GameState->Square.Info.IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+                
                 // Vertex Shader
                 //ID3D11DeviceContext_VSSetConstantBuffers(d3d->DeviceContext, 0, 1, &d3d->ConstantBuffer);
                 ID3D11DeviceContext_VSSetShader(d3d->DeviceContext, GameState->Square.Info.VertexShader, NULL, 0);
-
+                
                 // Rasterizer Stage
                 ID3D11DeviceContext_RSSetViewports(d3d->DeviceContext, 1, &viewport);
                 ID3D11DeviceContext_RSSetState(d3d->DeviceContext, d3d->RasterizerState);
-
+                
                 // Pixel Shader
                 //ID3D11DeviceContext_PSSetSamplers(d3d->DeviceContext, 0, 1, &d3d->Sampler);
                 //ID3D11DeviceContext_PSSetShaderResources(d3d->DeviceContext, 0, 1, &d3d->TextureView);
                 ID3D11DeviceContext_PSSetShader(d3d->DeviceContext, GameState->Square.Info.PixelShader, NULL, 0);
-
+                
                 // Output Merger
                 ID3D11DeviceContext_OMSetBlendState(d3d->DeviceContext, d3d->BlendState, NULL, ~0U);
                 ID3D11DeviceContext_OMSetDepthStencilState(d3d->DeviceContext, d3d->DepthState, 0);
                 ID3D11DeviceContext_OMSetRenderTargets(d3d->DeviceContext, 1, &d3d->RenderTargetView, d3d->DepthStencilView);
-
+                
                 // TODO(Eric): DrawIndexed isn't working..
                 // My idea was to draw the first 3 vertices, then draw the next 3 starting at index 1
                 // But it doesn't draw anything.
@@ -386,9 +395,10 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                 // Also, I need to read/learn more about drawing multiple things,
                 // because I seem to recall that we don't want to set up a vertex buffer for each one.
                 // draw 3 vertices
-                ID3D11DeviceContext_Draw(d3d->DeviceContext, 3, 0);
+                //ID3D11DeviceContext_Draw(d3d->DeviceContext, 3, 0);
                 //ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 3, 0, 0);
                 //ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 3, 1, 0);
+                ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 6, 0, 0);
             }
             
             
@@ -412,6 +422,30 @@ APP_UPDATE// NOTE(Eric): PER FRAME
     //os->RefreshScreen();
 }
 
+
+
+/*
+TODO(Eric) (9/10/2021):
+
+Simplify and Comment!
+Remove almost everything uneeded and comment everything that's left.
+- like the sampler state, blend state, etc.
+Just get a simple triangle up, solid color
+Simplify the functions, narrow it down to only one or two
+
+Comment everything, make it extremely clear what each thing is _for_, and what they connect to.
+Ex: The constant buffer lined up with this specific variable in the shader,
+the vertex buffer data comes in through this, etc. etc.
+
+and THEN I can start expirementing:
+- Draw a square
+- Draw _many_ squares
+- Use my own coordinates
+- Get things moving, probably with constant buffers
+- etc!
+
+
+*/
 
 
 
