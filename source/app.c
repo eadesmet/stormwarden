@@ -175,6 +175,20 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
         AssertHR(hr);
     }
     
+    // Constant buffer for the SQUARE
+    {
+        D3D11_BUFFER_DESC desc =
+        {
+            // {{v4(POS)}, {v4(SIZE)}, {v4(COLOR_}}
+            // NOTE(Eric): ByteWidth MUST be a multiple of 16
+            .ByteWidth = (4 * 3) * sizeof(float),
+            .Usage = D3D11_USAGE_DYNAMIC,
+            .BindFlags = D3D11_BIND_CONSTANT_BUFFER,
+            .CPUAccessFlags = D3D11_CPU_ACCESS_WRITE,
+        };
+        hr = ID3D11Device_CreateBuffer(d3d->Device, &desc, NULL, &GameState->Square.Info.ConstantBuffer);
+        AssertHR(hr);
+    }
     
 }
 
@@ -328,6 +342,23 @@ APP_UPDATE// NOTE(Eric): PER FRAME
             ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)d3d->ConstantBuffer, 0);
         }
         
+        // Update the SQUARE constant buffer
+        {
+            f32 ConstantData[] = 
+            {
+                +0.20f, +0.20f, 0.00f, 0.00f, // cPos
+                // TODO(Eric): Size does nothing in the shader atm. How would we do that?
+                0.0f, 0.0f, 0.0f, 0.0f, // cSize
+                0.8f, 0.8f, 0.8f, 1.0f   // cColor
+            };
+            
+            D3D11_MAPPED_SUBRESOURCE mapped;
+            hr = ID3D11DeviceContext_Map(d3d->DeviceContext, (ID3D11Resource*)GameState->Square.Info.ConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+            AssertHR(hr);
+            memcpy(mapped.pData, ConstantData, sizeof(ConstantData));
+            ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)GameState->Square.Info.ConstantBuffer, 0);
+        }
+        
         // NOTE(Eric): Render to screen
         {
             // Input Assembler
@@ -369,7 +400,7 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                 ID3D11DeviceContext_IASetIndexBuffer(d3d->DeviceContext, GameState->Square.Info.IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
                 
                 // Vertex Shader
-                //ID3D11DeviceContext_VSSetConstantBuffers(d3d->DeviceContext, 0, 1, &d3d->ConstantBuffer);
+                ID3D11DeviceContext_VSSetConstantBuffers(d3d->DeviceContext, 0, 1, &GameState->Square.Info.ConstantBuffer);
                 ID3D11DeviceContext_VSSetShader(d3d->DeviceContext, GameState->Square.Info.VertexShader, NULL, 0);
                 
                 // Rasterizer Stage
@@ -386,18 +417,7 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                 ID3D11DeviceContext_OMSetDepthStencilState(d3d->DeviceContext, d3d->DepthState, 0);
                 ID3D11DeviceContext_OMSetRenderTargets(d3d->DeviceContext, 1, &d3d->RenderTargetView, d3d->DepthStencilView);
                 
-                // TODO(Eric): DrawIndexed isn't working..
-                // My idea was to draw the first 3 vertices, then draw the next 3 starting at index 1
-                // But it doesn't draw anything.
-                // Wasn't there somewhere in the vertexbuffer where I tell it that it has this # of vertices?
-                // Also, this code is quite messy, but I'm trying to figure things out.
-                // Once I know what it takes to draw a thing, I can clean it up.
-                // Also, I need to read/learn more about drawing multiple things,
-                // because I seem to recall that we don't want to set up a vertex buffer for each one.
-                // draw 3 vertices
-                //ID3D11DeviceContext_Draw(d3d->DeviceContext, 3, 0);
-                //ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 3, 0, 0);
-                //ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 3, 1, 0);
+                
                 ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 6, 0, 0);
             }
             
@@ -447,9 +467,18 @@ and THEN I can start expirementing:
 
 */
 
+/*
+TODO(Eric): (9/20/2021):
 
+Now I'd like to set up a single vertex buffer that defines what a square is.
+Then adjust a constant buffer with a position, size, and color in it.
+Then when I go to render each square, it updates the constant buffer with it's info and draws it
+Each draw square call is the same, uses the same shaders, vertex buffer, index buffer, etc.
+The only difference per square is the constant buffer.
 
+but FIRST, let's try to change our current square with a constant buffer.
 
+*/
 
 
 

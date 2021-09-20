@@ -15,14 +15,24 @@ struct PS_INPUT
     float4 color : COLOR;
 };
 
+
+// b0 = constant buffer bound to slot 0
+cbuffer cbuffer0 : register(b0)
+{
+    float3 cPos;
+    float3 cSize;
+    float4 cColor;
+}
+
+
 PS_INPUT vs(VS_INPUT input)
 {
     float2 pos = input.pos;
-
+    
     PS_INPUT output;
-    output.pos = float4(pos, 0.f, 1.f);
+    output.pos = float4(pos, 0.f, 1.f) + float4(cPos, 0.f);
     output.uv = input.uv;
-    output.color = float4(input.color, 1.f);
+    output.color = cColor;//float4(input.color, 1.f);
     return output;
 }
 
