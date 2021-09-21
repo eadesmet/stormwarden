@@ -20,30 +20,6 @@
 
 #include "entity.h"
 
-typedef struct render_info render_info;
-struct render_info
-{
-    ID3D11InputLayout *InputLayout;
-    ID3D11Buffer *VertexBuffer;
-    ID3D11Buffer *IndexBuffer;
-    ID3D11VertexShader *VertexShader;
-    ID3D11PixelShader *PixelShader;
-    ID3D11Buffer *ConstantBuffer;
-};
-
-typedef struct square square;
-struct square
-{
-    render_info Info;
-    
-    vertex_data Data[4];
-};
-
-typedef struct game_state game_state;
-struct game_state
-{
-    square Square;
-};
 global game_state G_GameState = {0};
 
 
@@ -343,13 +319,21 @@ APP_UPDATE// NOTE(Eric): PER FRAME
         }
         
         // Update the SQUARE constant buffer
+        global f32 angle_square = 0;
         {
+            angle_square += delta * 2.0f * (float)PI / 20.0f; // full rotation in 20 seconds
+            angle_square = fmodf(angle, 2.0f * (float)PI);
+            
             f32 ConstantData[] = 
             {
-                +0.20f, +0.20f, 0.00f, 0.00f, // cPos
+                //+0.20f, +0.20f, 0.00f, 0.00f, // cPos
+                Cos(angle_square), Sin(angle_square), 0.0f, 0.0f,
+                
                 // TODO(Eric): Size does nothing in the shader atm. How would we do that?
                 0.0f, 0.0f, 0.0f, 0.0f, // cSize
-                0.8f, 0.8f, 0.8f, 1.0f   // cColor
+                
+                //0.8f, 0.8f, 0.8f, 1.0f   // cColor
+                Cos(angle_square), Sin(angle_square), 0.8f, 1.0f
             };
             
             D3D11_MAPPED_SUBRESOURCE mapped;
@@ -480,6 +464,18 @@ but FIRST, let's try to change our current square with a constant buffer.
 
 */
 
+/*
+TODO(Eric): (9/21/2021):
+
+I'm not sure how to effect the size of the square.
+It's directly based on what vertices we are giving it,
+and since the shaders work on single vertices at a time (but multiple at a time),
+I don't know how to just change a couple of them. Right?
+Oh, you know what.
+It's on the transform, which is going straight into matrix multiplication transforms
+those do size, rotation and scale. I did a bunch of exmaples on each of those already.
+
+*/
 
 
 
