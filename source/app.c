@@ -61,6 +61,7 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
     
     // NOTE(Eric): Attempting to draw a Square.
     {
+        /*
         vertex_data my_data[] =
         {
             { { -0.75f, +0.50f }, { 25.0f, 50.0f }, { 1, 0, 0 } }, // Top-left
@@ -68,16 +69,24 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
             { { -0.75f, -0.50f }, { 50.0f,  0.0f }, { 0, 0, 1 } }, // Bottom-left
             { { +0.75f, +0.50f }, { 50.0f,  0.0f }, { 0, 0, 1 } }, // Top-right
         };
+        */
+        v3 SquareVertices[] =
+        {
+            { -0.50f, +0.50f, 0.00f }, // Top-left
+            { +0.50f, -0.50f, 0.00f }, // Bottom-right
+            { -0.50f, -0.50f, 0.00f }, // Bottom-left
+            { +0.50f, +0.50f, 0.00f }  // Top-right
+        };
         
         D3D11_BUFFER_DESC desc =
         {
-            .ByteWidth = sizeof(GameState->Square.Data),
+            .ByteWidth = sizeof(SquareVertices),
             .Usage = D3D11_USAGE_IMMUTABLE,
             .BindFlags = D3D11_BIND_VERTEX_BUFFER,
         };
         
-        D3D11_SUBRESOURCE_DATA initial = { .pSysMem = my_data };
-        hr = ID3D11Device_CreateBuffer(d3d->Device, &desc, &initial, &GameState->Square.Info.VertexBuffer);
+        D3D11_SUBRESOURCE_DATA initial = { .pSysMem = SquareVertices };
+        hr = ID3D11Device_CreateBuffer(d3d->Device, &desc, &initial, &GameState->RenderInfos[RenderInfoType_Square].VertexBuffer);
         AssertHR(hr);
         
         // Set up an Index Buffer for the square
@@ -85,12 +94,12 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
         
         D3D11_BUFFER_DESC IndexDesc = 
         {
-            .ByteWidth = sizeof(my_data),
+            .ByteWidth = sizeof(SquareVertices),
             .Usage = D3D11_USAGE_DEFAULT,
             .BindFlags = D3D11_BIND_INDEX_BUFFER,
         };
         D3D11_SUBRESOURCE_DATA IndexDataBuffer = { .pSysMem = indices };
-        hr = ID3D11Device_CreateBuffer(d3d->Device, &IndexDesc, &IndexDataBuffer, &GameState->Square.Info.IndexBuffer);
+        hr = ID3D11Device_CreateBuffer(d3d->Device, &IndexDesc, &IndexDataBuffer, &GameState->RenderInfos[RenderInfoType_Square].IndexBuffer);
     }
     
     // NOTE(Eric): Set InputLayout and create shaders
@@ -119,20 +128,18 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
         // NOTE(Eric): Try to compile my own shaders
         D3D11_INPUT_ELEMENT_DESC square_desc[] =
         {
-            { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,       0, offsetof(struct vertex_data, Position),      D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, offsetof(struct vertex_data, UV),            D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            { "COLOR",    0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(struct vertex_data, Color),         D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         };
         
 #include "shaders/d3d11_square_vshader.h"
-        hr = ID3D11Device_CreateVertexShader(d3d->Device, d3d11_square_vshader, sizeof(d3d11_square_vshader), NULL, &GameState->Square.Info.VertexShader);
+        hr = ID3D11Device_CreateVertexShader(d3d->Device, d3d11_square_vshader, sizeof(d3d11_square_vshader), NULL, &GameState->RenderInfos[RenderInfoType_Square].VertexShader);
         AssertHR(hr);
         
 #include "shaders/d3d11_square_pshader.h"
-        hr = ID3D11Device_CreatePixelShader(d3d->Device, d3d11_square_pshader, sizeof(d3d11_square_pshader), NULL, &GameState->Square.Info.PixelShader);
+        hr = ID3D11Device_CreatePixelShader(d3d->Device, d3d11_square_pshader, sizeof(d3d11_square_pshader), NULL, &GameState->RenderInfos[RenderInfoType_Square].PixelShader);
         AssertHR(hr);
         
-        hr = ID3D11Device_CreateInputLayout(d3d->Device, square_desc, _countof(square_desc), d3d11_square_vshader, sizeof(d3d11_square_vshader), &GameState->Square.Info.InputLayout);
+        hr = ID3D11Device_CreateInputLayout(d3d->Device, square_desc, _countof(square_desc), d3d11_square_vshader, sizeof(d3d11_square_vshader), &GameState->RenderInfos[RenderInfoType_Square].InputLayout);
         AssertHR(hr);
         
     }
@@ -162,7 +169,7 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
             .BindFlags = D3D11_BIND_CONSTANT_BUFFER,
             .CPUAccessFlags = D3D11_CPU_ACCESS_WRITE,
         };
-        hr = ID3D11Device_CreateBuffer(d3d->Device, &desc, NULL, &GameState->Square.Info.ConstantBuffer);
+        hr = ID3D11Device_CreateBuffer(d3d->Device, &desc, NULL, &GameState->RenderInfos[RenderInfoType_Square].ConstantBuffer);
         AssertHR(hr);
     }
     
@@ -326,8 +333,8 @@ APP_UPDATE// NOTE(Eric): PER FRAME
             
             f32 ConstantData[] = 
             {
-                //+0.20f, +0.20f, 0.00f, 0.00f, // cPos
-                Cos(angle_square), Sin(angle_square), 0.0f, 0.0f,
+                +0.20f, +0.20f, 0.00f, 0.00f, // cPos
+                //Cos(angle_square), Sin(angle_square), 0.0f, 0.0f,
                 
                 // TODO(Eric): Size does nothing in the shader atm. How would we do that?
                 0.0f, 0.0f, 0.0f, 0.0f, // cSize
@@ -337,10 +344,10 @@ APP_UPDATE// NOTE(Eric): PER FRAME
             };
             
             D3D11_MAPPED_SUBRESOURCE mapped;
-            hr = ID3D11DeviceContext_Map(d3d->DeviceContext, (ID3D11Resource*)GameState->Square.Info.ConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+            hr = ID3D11DeviceContext_Map(d3d->DeviceContext, (ID3D11Resource*)GameState->RenderInfos[RenderInfoType_Square].ConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
             AssertHR(hr);
             memcpy(mapped.pData, ConstantData, sizeof(ConstantData));
-            ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)GameState->Square.Info.ConstantBuffer, 0);
+            ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)GameState->RenderInfos[RenderInfoType_Square].ConstantBuffer, 0);
         }
         
         // NOTE(Eric): Render to screen
@@ -373,19 +380,19 @@ APP_UPDATE// NOTE(Eric): PER FRAME
             // draw 3 vertices
             ID3D11DeviceContext_Draw(d3d->DeviceContext, 3, 0);
             
+            // NOTE(Eric): Try to draw another thing.
             {
-                // NOTE(Eric): Try to draw another thing.
                 // Input Assembler
-                ID3D11DeviceContext_IASetInputLayout(d3d->DeviceContext, GameState->Square.Info.InputLayout);
+                ID3D11DeviceContext_IASetInputLayout(d3d->DeviceContext, GameState->RenderInfos[RenderInfoType_Square].InputLayout);
                 ID3D11DeviceContext_IASetPrimitiveTopology(d3d->DeviceContext, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-                UINT stride = sizeof(vertex_data);
+                UINT stride = sizeof(v3);
                 UINT offset = 0;
-                ID3D11DeviceContext_IASetVertexBuffers(d3d->DeviceContext, 0, 1, &GameState->Square.Info.VertexBuffer, &stride, &offset);
-                ID3D11DeviceContext_IASetIndexBuffer(d3d->DeviceContext, GameState->Square.Info.IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+                ID3D11DeviceContext_IASetVertexBuffers(d3d->DeviceContext, 0, 1, &GameState->RenderInfos[RenderInfoType_Square].VertexBuffer, &stride, &offset);
+                ID3D11DeviceContext_IASetIndexBuffer(d3d->DeviceContext, GameState->RenderInfos[RenderInfoType_Square].IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
                 
                 // Vertex Shader
-                ID3D11DeviceContext_VSSetConstantBuffers(d3d->DeviceContext, 0, 1, &GameState->Square.Info.ConstantBuffer);
-                ID3D11DeviceContext_VSSetShader(d3d->DeviceContext, GameState->Square.Info.VertexShader, NULL, 0);
+                ID3D11DeviceContext_VSSetConstantBuffers(d3d->DeviceContext, 0, 1, &GameState->RenderInfos[RenderInfoType_Square].ConstantBuffer);
+                ID3D11DeviceContext_VSSetShader(d3d->DeviceContext, GameState->RenderInfos[RenderInfoType_Square].VertexShader, NULL, 0);
                 
                 // Rasterizer Stage
                 ID3D11DeviceContext_RSSetViewports(d3d->DeviceContext, 1, &viewport);
@@ -394,7 +401,7 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                 // Pixel Shader
                 //ID3D11DeviceContext_PSSetSamplers(d3d->DeviceContext, 0, 1, &d3d->Sampler);
                 //ID3D11DeviceContext_PSSetShaderResources(d3d->DeviceContext, 0, 1, &d3d->TextureView);
-                ID3D11DeviceContext_PSSetShader(d3d->DeviceContext, GameState->Square.Info.PixelShader, NULL, 0);
+                ID3D11DeviceContext_PSSetShader(d3d->DeviceContext, GameState->RenderInfos[RenderInfoType_Square].PixelShader, NULL, 0);
                 
                 // Output Merger
                 ID3D11DeviceContext_OMSetBlendState(d3d->DeviceContext, d3d->BlendState, NULL, ~0U);

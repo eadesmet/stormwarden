@@ -24,18 +24,26 @@ struct render_info
     ID3D11Buffer *ConstantBuffer;
 };
 
-typedef struct square square;
-struct square
+enum render_info_type
 {
-    render_info Info;
+    RenderInfoType_Square,
     
-    vertex_data Data[4];
+    RenderInfoType_Count
+};
+
+typedef struct entity_square entity_square;
+struct entity_square
+{
+    vertex_data VertexData[4];
 };
 
 typedef struct game_state game_state;
 struct game_state
 {
-    square Square;
+    render_info RenderInfos[RenderInfoType_Count];
+    
+    u32 SquareCount;
+    entity_square Squares[64];
 };
 
 #endif //ENTITY_H
