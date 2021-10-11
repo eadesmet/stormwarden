@@ -11,7 +11,7 @@
 #include "win32_directx.h"
 
 
-
+#if 0
 static int 
 D3D11RendererIsValid(d3d11_info *Renderer)
 {
@@ -22,6 +22,7 @@ D3D11RendererIsValid(d3d11_info *Renderer)
     
     return Result;
 }
+#endif
 
 static void
 ReleaseD3D11Info(d3d11_info *Renderer)
@@ -33,7 +34,7 @@ ReleaseD3D11Info(d3d11_info *Renderer)
     //if(Renderer->PixelShader) ID3D11ComputeShader_Release(Renderer->PixelShader);
     //if(Renderer->VertexShader) ID3D11ComputeShader_Release(Renderer->VertexShader);
     
-    if(Renderer->ConstantBuffer) ID3D11Buffer_Release(Renderer->ConstantBuffer);
+    //if(Renderer->ConstantBuffer) ID3D11Buffer_Release(Renderer->ConstantBuffer);
     
     if(Renderer->RenderTargetView) ID3D11UnorderedAccessView_Release(Renderer->RenderTargetView);
     if(Renderer->SwapChain) IDXGISwapChain2_Release(Renderer->SwapChain);
@@ -282,17 +283,26 @@ AcquireD3D11Renderer(HWND Window, int EnableDebugging)
     
     // Create Depth State
     {
-        // disable depth & stencil test
         D3D11_DEPTH_STENCIL_DESC desc =
         {
-            .DepthEnable = FALSE,
+            .DepthEnable = TRUE,
             .DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL,
             .DepthFunc = D3D11_COMPARISON_LESS,
-            .StencilEnable = FALSE,
+            .StencilEnable = TRUE,
             .StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK,
             .StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK,
-            // .FrontFace = ... 
-            // .BackFace = ...
+            
+            // Stencil operations if pixel is front-facing
+            .FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP,
+            .FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_INCR,
+            .FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP,
+            .FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS,
+            
+            // Stencil operations if pixel is back-facing
+            .BackFace.StencilFailOp = D3D11_STENCIL_OP_KEEP,
+            .BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_DECR,
+            .BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP,
+            .BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS,
         };
         hr = ID3D11Device_CreateDepthStencilState(d3d->Device, &desc, &d3d->DepthState);
         AssertHR(hr);

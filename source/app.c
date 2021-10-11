@@ -18,10 +18,8 @@
 //#include "gl_arcsynth.h"
 //#include "gl_arcsynth.c"
 
-#include "entity.h"
-
-global game_state G_GameState = {0};
-
+#include "entity.c"
+#include "render.c"
 
 global LARGE_INTEGER G_Freq, G_c1;
 
@@ -29,149 +27,17 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
 {
     os = os_;
     d3d11_info *d3d = &os->d3d;
-    game_state *GameState = &G_GameState;
-    HRESULT hr;
+    game_state *GameState = (game_state *)M_ArenaPush(&os->permanent_arena, sizeof(game_state));
+    
+    f32 AspectRatio = (f32)((f32)os->window_size.width / (f32)os->window_size.height);
+    GameState->Camera = CreateCamera(86.0f, AspectRatio);
+    
     
     // TODO(Eric): Replace this with our own Timer, based on these calls and luna's timer
     QueryPerformanceFrequency(&G_Freq);
     QueryPerformanceCounter(&G_c1);
     
-    // NOTE(Eric): Create vertex buffer
-    {
-        vertex_data data[] =
-        {
-            { { -0.00f, +0.75f }, { 25.0f, 50.0f }, { 1, 0, 0 } },
-            { { +0.75f, -0.50f }, {  0.0f,  0.0f }, { 0, 1, 0 } },
-            { { -0.75f, -0.50f }, { 50.0f,  0.0f }, { 0, 0, 1 } },
-        };
-        
-        D3D11_BUFFER_DESC desc =
-        {
-            .ByteWidth = sizeof(data),
-            .Usage = D3D11_USAGE_IMMUTABLE,
-            .BindFlags = D3D11_BIND_VERTEX_BUFFER,
-        };
-        
-        D3D11_SUBRESOURCE_DATA initial = { .pSysMem = data };
-        hr = ID3D11Device_CreateBuffer(d3d->Device, &desc, &initial, &d3d->VertexBuffer[d3d->VertexBufferCount]);
-        AssertHR(hr);
-        
-        d3d->VertexBufferCount++;
-    }
-    
-    // NOTE(Eric): Attempting to draw a Square.
-    {
-        /*
-        vertex_data my_data[] =
-        {
-            { { -0.75f, +0.50f }, { 25.0f, 50.0f }, { 1, 0, 0 } }, // Top-left
-            { { +0.75f, -0.50f }, {  0.0f,  0.0f }, { 0, 1, 0 } }, // Bottom-right
-            { { -0.75f, -0.50f }, { 50.0f,  0.0f }, { 0, 0, 1 } }, // Bottom-left
-            { { +0.75f, +0.50f }, { 50.0f,  0.0f }, { 0, 0, 1 } }, // Top-right
-        };
-        */
-        v3 SquareVertices[] =
-        {
-            { -0.50f, +0.50f, 0.00f }, // Top-left
-            { +0.50f, -0.50f, 0.00f }, // Bottom-right
-            { -0.50f, -0.50f, 0.00f }, // Bottom-left
-            { +0.50f, +0.50f, 0.00f }  // Top-right
-        };
-        
-        D3D11_BUFFER_DESC desc =
-        {
-            .ByteWidth = sizeof(SquareVertices),
-            .Usage = D3D11_USAGE_IMMUTABLE,
-            .BindFlags = D3D11_BIND_VERTEX_BUFFER,
-        };
-        
-        D3D11_SUBRESOURCE_DATA initial = { .pSysMem = SquareVertices };
-        hr = ID3D11Device_CreateBuffer(d3d->Device, &desc, &initial, &GameState->RenderInfos[RenderInfoType_Square].VertexBuffer);
-        AssertHR(hr);
-        
-        // Set up an Index Buffer for the square
-        u32 indices[] = { 0, 1, 2, 0, 1, 3 };
-        
-        D3D11_BUFFER_DESC IndexDesc = 
-        {
-            .ByteWidth = sizeof(SquareVertices),
-            .Usage = D3D11_USAGE_DEFAULT,
-            .BindFlags = D3D11_BIND_INDEX_BUFFER,
-        };
-        D3D11_SUBRESOURCE_DATA IndexDataBuffer = { .pSysMem = indices };
-        hr = ID3D11Device_CreateBuffer(d3d->Device, &IndexDesc, &IndexDataBuffer, &GameState->RenderInfos[RenderInfoType_Square].IndexBuffer);
-    }
-    
-    // NOTE(Eric): Set InputLayout and create shaders
-    {
-        // these must match vertex shader input layout
-        D3D11_INPUT_ELEMENT_DESC desc[] =
-        {
-            { "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,    0, offsetof(struct vertex_data, Position), D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, offsetof(struct vertex_data, UV),       D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            { "COLOR",    0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(struct vertex_data, Color),    D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        };
-        
-        // NOTE(Eric): Compiled shader files with fxc.exe
-#include "shaders/d3d11_vshader.h"
-        hr = ID3D11Device_CreateVertexShader(d3d->Device, d3d11_vshader, sizeof(d3d11_vshader), NULL, &d3d->VertexShader[d3d->VertexShaderCount++]);
-        AssertHR(hr);
-        
-#include "shaders/d3d11_pshader.h"
-        hr = ID3D11Device_CreatePixelShader(d3d->Device, d3d11_pshader, sizeof(d3d11_pshader), NULL, &d3d->PixelShader[d3d->PixelShaderCount++]);
-        AssertHR(hr);
-        
-        hr = ID3D11Device_CreateInputLayout(d3d->Device, desc, _countof(desc), d3d11_vshader, sizeof(d3d11_vshader), &d3d->InputLayout);
-        AssertHR(hr);
-        
-        
-        // NOTE(Eric): Try to compile my own shaders
-        D3D11_INPUT_ELEMENT_DESC square_desc[] =
-        {
-            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        };
-        
-#include "shaders/d3d11_square_vshader.h"
-        hr = ID3D11Device_CreateVertexShader(d3d->Device, d3d11_square_vshader, sizeof(d3d11_square_vshader), NULL, &GameState->RenderInfos[RenderInfoType_Square].VertexShader);
-        AssertHR(hr);
-        
-#include "shaders/d3d11_square_pshader.h"
-        hr = ID3D11Device_CreatePixelShader(d3d->Device, d3d11_square_pshader, sizeof(d3d11_square_pshader), NULL, &GameState->RenderInfos[RenderInfoType_Square].PixelShader);
-        AssertHR(hr);
-        
-        hr = ID3D11Device_CreateInputLayout(d3d->Device, square_desc, _countof(square_desc), d3d11_square_vshader, sizeof(d3d11_square_vshader), &GameState->RenderInfos[RenderInfoType_Square].InputLayout);
-        AssertHR(hr);
-        
-    }
-    
-    
-    // Create Constant Buffer, used only for the Transform matrix multiply
-    {
-        D3D11_BUFFER_DESC desc =
-        {
-            .ByteWidth = 2 * 4 * sizeof(float),
-            .Usage = D3D11_USAGE_DYNAMIC,
-            .BindFlags = D3D11_BIND_CONSTANT_BUFFER,
-            .CPUAccessFlags = D3D11_CPU_ACCESS_WRITE,
-        };
-        hr = ID3D11Device_CreateBuffer(d3d->Device, &desc, NULL, &d3d->ConstantBuffer);
-        AssertHR(hr);
-    }
-    
-    // Constant buffer for the SQUARE
-    {
-        D3D11_BUFFER_DESC desc =
-        {
-            // {{v4(POS)}, {v4(SIZE)}, {v4(COLOR_}}
-            // NOTE(Eric): ByteWidth MUST be a multiple of 16
-            .ByteWidth = (4 * 3) * sizeof(float),
-            .Usage = D3D11_USAGE_DYNAMIC,
-            .BindFlags = D3D11_BIND_CONSTANT_BUFFER,
-            .CPUAccessFlags = D3D11_CPU_ACCESS_WRITE,
-        };
-        hr = ID3D11Device_CreateBuffer(d3d->Device, &desc, NULL, &GameState->RenderInfos[RenderInfoType_Square].ConstantBuffer);
-        AssertHR(hr);
-    }
+    InitRenderer(d3d, GameState);
     
 }
 
@@ -185,16 +51,29 @@ APP_HOT_UNLOAD {}
 APP_UPDATE// NOTE(Eric): PER FRAME
 {
     d3d11_info *d3d = &os->d3d;
-    game_state *GameState = &G_GameState;
+    game_state *GameState = (game_state *)os->permanent_arena.base;
     
     HRESULT hr;
     int width = os->window_size.width;
     int height = os->window_size.height;
     
+    // NOTE(Eric): Get the DeltaTime
+    LARGE_INTEGER c2;
+    QueryPerformanceCounter(&c2);
+    f32 DeltaTime = (float)((double)(c2.QuadPart - G_c1.QuadPart) / G_Freq.QuadPart);
+    G_c1 = c2;
+    
+    // NOTE(Eric): Used for sample triangle 
+    global f32 angle = 0;
+    
+    // NOTE(Eric): Camera
+    game_camera *Camera = &GameState->Camera;
+    f32 CameraSpeed = 5.0f; // Meters per second
+    f32 CameraMoveAmount = CameraSpeed * DeltaTime;
+    
+    
     if (d3d->RenderTargetView == NULL || os->resized)
     {
-        //glViewport(0, 0, (GLsizei)os->window_size.width, (GLsizei)os->window_size.height);
-        
         if (d3d->RenderTargetView)
         {
             // release old swap chain buffers
@@ -267,6 +146,22 @@ APP_UPDATE// NOTE(Eric): PER FRAME
             {
                 switch(Event->key)
                 {
+                    case Key_W:
+                    {
+                        
+                    }break;
+                    case Key_A:
+                    {
+                        
+                    }break;
+                    case Key_S:
+                    {
+                        
+                    }break;
+                    case Key_D:
+                    {
+                        
+                    }break;
                     case Key_Space:
                     {
                         
@@ -285,13 +180,8 @@ APP_UPDATE// NOTE(Eric): PER FRAME
     
     if (d3d->RenderTargetView)
     {
-        LARGE_INTEGER c2;
-        QueryPerformanceCounter(&c2);
-        f32 delta = (float)((double)(c2.QuadPart - G_c1.QuadPart) / G_Freq.QuadPart);
-        G_c1 = c2;
-        
         // output viewport covering all client area of window
-        D3D11_VIEWPORT viewport =
+        D3D11_VIEWPORT WindowViewport =
         {
             .TopLeftX = 0,
             .TopLeftY = 0,
@@ -305,111 +195,192 @@ APP_UPDATE// NOTE(Eric): PER FRAME
         ID3D11DeviceContext_ClearRenderTargetView(d3d->DeviceContext, d3d->RenderTargetView, ClearColor);
         ID3D11DeviceContext_ClearDepthStencilView(d3d->DeviceContext, d3d->DepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
         
-        // setup rotation matrix in uniform
-        global f32 angle = 0;
-        {
-            angle += delta * 2.0f * (float)PI / 20.0f; // full rotation in 20 seconds
-            angle = fmodf(angle, 2.0f * (float)PI);
-            
-            float aspect = (float)height / width;
-            float matrix[] =
-            {
-                Cos(angle) * aspect, -Sin(angle), 0.f, 0.f,
-                Sin(angle) * aspect,  Cos(angle), 0.f, 0.f,
-            };
-            
-            D3D11_MAPPED_SUBRESOURCE mapped;
-            hr = ID3D11DeviceContext_Map(d3d->DeviceContext, (ID3D11Resource*)d3d->ConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-            AssertHR(hr);
-            memcpy(mapped.pData, matrix, sizeof(matrix));
-            ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)d3d->ConstantBuffer, 0);
-        }
         
-        // Update the SQUARE constant buffer
-        global f32 angle_square = 0;
-        {
-            angle_square += delta * 2.0f * (float)PI / 20.0f; // full rotation in 20 seconds
-            angle_square = fmodf(angle, 2.0f * (float)PI);
-            
-            f32 ConstantData[] = 
-            {
-                +0.20f, +0.20f, 0.00f, 0.00f, // cPos
-                //Cos(angle_square), Sin(angle_square), 0.0f, 0.0f,
-                
-                // TODO(Eric): Size does nothing in the shader atm. How would we do that?
-                0.0f, 0.0f, 0.0f, 0.0f, // cSize
-                
-                //0.8f, 0.8f, 0.8f, 1.0f   // cColor
-                Cos(angle_square), Sin(angle_square), 0.8f, 1.0f
-            };
-            
-            D3D11_MAPPED_SUBRESOURCE mapped;
-            hr = ID3D11DeviceContext_Map(d3d->DeviceContext, (ID3D11Resource*)GameState->RenderInfos[RenderInfoType_Square].ConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-            AssertHR(hr);
-            memcpy(mapped.pData, ConstantData, sizeof(ConstantData));
-            ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)GameState->RenderInfos[RenderInfoType_Square].ConstantBuffer, 0);
-        }
         
-        // NOTE(Eric): Render to screen
+        
+        
+        //
+        //~ NOTE(Eric): Render to screen
+        //~
         {
-            // Input Assembler
-            ID3D11DeviceContext_IASetInputLayout(d3d->DeviceContext, d3d->InputLayout);
-            ID3D11DeviceContext_IASetPrimitiveTopology(d3d->DeviceContext, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-            UINT stride = sizeof(vertex_data);
-            UINT offset = 0;
-            ID3D11DeviceContext_IASetVertexBuffers(d3d->DeviceContext, 0, 1, &d3d->VertexBuffer[0], &stride, &offset);
-            
-            // Vertex Shader
-            ID3D11DeviceContext_VSSetConstantBuffers(d3d->DeviceContext, 0, 1, &d3d->ConstantBuffer);
-            ID3D11DeviceContext_VSSetShader(d3d->DeviceContext, d3d->VertexShader[0], NULL, 0);
-            
+            // NOTE(Eric): Common renderer things that are either shared, or in d3d_info instead of render_info
             // Rasterizer Stage
-            ID3D11DeviceContext_RSSetViewports(d3d->DeviceContext, 1, &viewport);
+            ID3D11DeviceContext_RSSetViewports(d3d->DeviceContext, 1, &WindowViewport);
             ID3D11DeviceContext_RSSetState(d3d->DeviceContext, d3d->RasterizerState);
             
             // Pixel Shader
             ID3D11DeviceContext_PSSetSamplers(d3d->DeviceContext, 0, 1, &d3d->Sampler);
             ID3D11DeviceContext_PSSetShaderResources(d3d->DeviceContext, 0, 1, &d3d->TextureView);
-            ID3D11DeviceContext_PSSetShader(d3d->DeviceContext, d3d->PixelShader[0], NULL, 0);
             
             // Output Merger
             ID3D11DeviceContext_OMSetBlendState(d3d->DeviceContext, d3d->BlendState, NULL, ~0U);
             ID3D11DeviceContext_OMSetDepthStencilState(d3d->DeviceContext, d3d->DepthState, 0);
             ID3D11DeviceContext_OMSetRenderTargets(d3d->DeviceContext, 1, &d3d->RenderTargetView, d3d->DepthStencilView);
             
-            // draw 3 vertices
-            ID3D11DeviceContext_Draw(d3d->DeviceContext, 3, 0);
-            
-            // NOTE(Eric): Try to draw another thing.
+            for (u32 RenderInfoTypeIndex = 0; RenderInfoTypeIndex < RenderInfoType_Count; RenderInfoTypeIndex++)
             {
-                // Input Assembler
-                ID3D11DeviceContext_IASetInputLayout(d3d->DeviceContext, GameState->RenderInfos[RenderInfoType_Square].InputLayout);
-                ID3D11DeviceContext_IASetPrimitiveTopology(d3d->DeviceContext, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-                UINT stride = sizeof(v3);
-                UINT offset = 0;
-                ID3D11DeviceContext_IASetVertexBuffers(d3d->DeviceContext, 0, 1, &GameState->RenderInfos[RenderInfoType_Square].VertexBuffer, &stride, &offset);
-                ID3D11DeviceContext_IASetIndexBuffer(d3d->DeviceContext, GameState->RenderInfos[RenderInfoType_Square].IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+                switch(RenderInfoTypeIndex)
+                {
+#if 0 // Don't draw the traingle for now.
+                    case RenderInfoType_SampleTriangle:
+                    {
+                        render_info SampleTriangleInfo = GameState->RenderInfos[RenderInfoType_SampleTriangle];
+                        
+                        // Update constant buffer (setup rotation matrix in uniform)
+                        angle += DeltaTime * 2.0f * (float)PI / 20.0f; // full rotation in 20 seconds
+                        angle = fmodf(angle, 2.0f * (float)PI);
+                        
+                        float aspect = (float)height / width;
+                        float matrix[] =
+                        {
+                            Cos(angle) * aspect, -Sin(angle), 0.f, 0.f,
+                            Sin(angle) * aspect,  Cos(angle), 0.f, 0.f,
+                        };
+                        
+                        D3D11_MAPPED_SUBRESOURCE mapped;
+                        hr = ID3D11DeviceContext_Map(d3d->DeviceContext, (ID3D11Resource*)SampleTriangleInfo.ConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+                        AssertHR(hr);
+                        memcpy(mapped.pData, matrix, sizeof(matrix));
+                        ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)SampleTriangleInfo.ConstantBuffer, 0);
+                        
+                        
+                        // Input Assembler
+                        ID3D11DeviceContext_IASetInputLayout(d3d->DeviceContext, SampleTriangleInfo.InputLayout);
+                        ID3D11DeviceContext_IASetPrimitiveTopology(d3d->DeviceContext, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+                        UINT stride = sizeof(vertex_data);
+                        UINT offset = 0;
+                        ID3D11DeviceContext_IASetVertexBuffers(d3d->DeviceContext, 0, 1, &SampleTriangleInfo.VertexBuffer, &stride, &offset);
+                        
+                        // Vertex Shader
+                        ID3D11DeviceContext_VSSetConstantBuffers(d3d->DeviceContext, 0, 1, &SampleTriangleInfo.ConstantBuffer);
+                        ID3D11DeviceContext_VSSetShader(d3d->DeviceContext, SampleTriangleInfo.VertexShader, NULL, 0);
+                        
+                        // Pixel Shader
+                        ID3D11DeviceContext_PSSetShader(d3d->DeviceContext, SampleTriangleInfo.PixelShader, NULL, 0);
+                        
+                        // draw 3 vertices
+                        ID3D11DeviceContext_Draw(d3d->DeviceContext, 3, 0);
+                        
+                        
+                    }break;
+#endif
+                    case RenderInfoType_Square:
+                    {
+                        render_info SquareInfo = GameState->RenderInfos[RenderInfoType_Square];
+                        
+                        // Input Assembler
+                        UINT stride = sizeof(v3);
+                        UINT offset = 0;
+                        ID3D11DeviceContext_IASetInputLayout(d3d->DeviceContext, SquareInfo.InputLayout);
+                        ID3D11DeviceContext_IASetPrimitiveTopology(d3d->DeviceContext, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+                        ID3D11DeviceContext_IASetVertexBuffers(d3d->DeviceContext, 0, 1, &SquareInfo.VertexBuffer, &stride, &offset);
+                        ID3D11DeviceContext_IASetIndexBuffer(d3d->DeviceContext, SquareInfo.IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+                        
+                        // Vertex Shader
+                        ID3D11DeviceContext_VSSetConstantBuffers(d3d->DeviceContext, 0, 1, &SquareInfo.ConstantBuffer);
+                        ID3D11DeviceContext_VSSetShader(d3d->DeviceContext, SquareInfo.VertexShader, NULL, 0);
+                        
+                        // Rasterizer Stage
+                        ID3D11DeviceContext_RSSetViewports(d3d->DeviceContext, 1, &WindowViewport);
+                        ID3D11DeviceContext_RSSetState(d3d->DeviceContext, d3d->RasterizerState);
+                        
+                        // Pixel Shader
+                        ID3D11DeviceContext_PSSetShader(d3d->DeviceContext, SquareInfo.PixelShader, NULL, 0);
+                        
+                        
+                        {
+                            // Update the SQUARE constant buffer
+                            
+                            // This should go:
+                            // Model to World
+                            // World to View
+                            // View to Projection
+                            
+                            m4 Model = M4InitD(1.0f);
+                            
+                            m4 View = M4TranslateV3(V3Negate(Camera->Position));
+                            m4 ModelView = M4MultiplyM4(Model, View);
+                            
+                            m4 ModelViewProjection = M4MultiplyM4(ModelView, Camera->Perspective);
+                            
+                            square_constant ConstantData = 
+                            {
+                                {-0.00f, +0.00f, 0.20f, 0.00f}, // cPos
+                                //Cos(angle_square), Sin(angle_square), 0.0f, 0.0f,
+                                
+                                // TODO(Eric): Size does nothing in the shader atm. How would we do that?
+                                {0.0f, 0.0f, 0.0f, 0.0f}, // cSize
+                                
+                                //0.8f, 0.8f, 0.8f, 1.0f   // cColor
+                                {Cos(angle), Sin(angle), 0.8f, 1.0f},
+                                
+                                ModelViewProjection
+                            };
+                            
+                            D3D11_MAPPED_SUBRESOURCE ConstantSubresource;
+                            hr = ID3D11DeviceContext_Map(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &ConstantSubresource);
+                            AssertHR(hr);
+                            memcpy(ConstantSubresource.pData, &ConstantData, sizeof(ConstantData));
+                            ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0);
+                            
+                            // Draw 6 vertices, from the 4 indexes we have set in the vertex buffer (two triangles)
+                            //ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 6, 0, 0);
+                        }
+                        
+                        //~ NOTE(Eric): Test draw a second square, with a different z-value to test depth
+                        {
+                            m4 Model = M4InitD(1.0f);
+                            
+                            v3 Scale = v3(0.5f, 0.5f, 0.0f);
+                            Model = M4ScaleV3(Scale);
+                            
+                            // NOTE(Eric): Testing out an 'offset', to hopefully change it's position.
+                            // However, I'm manually setting the w in the shader, so I don't think this is used.
+                            
+                            //-
+                            // Also IMPORTANT: I'm going back to arcsync tutorials, and my notes on them, because they are great.
+                            // My new idea is to go through them again, along with my notes, and convert the things to dx11,
+                            // so we have a solid understanding of all of it from the ground up.
+                            //-
+                            
+                            v3 Offset = v3(-0.5f, 1.5f, 0.0f);
+                            Model.elements[3][0] = Offset.x;
+                            Model.elements[3][1] = Offset.y;
+                            Model.elements[3][2] = Offset.z;
+                            Model.elements[3][3] = 1.0f;
+                            
+                            
+                            m4 View = M4TranslateV3(V3Negate(Camera->Position));
+                            m4 ModelView = M4MultiplyM4(Model, View);
+                            
+                            m4 ModelViewProjection = M4MultiplyM4(ModelView, Camera->Perspective);
+                            
+                            square_constant ConstantData[] = 
+                            {
+                                +0.20f, -0.40f, 0.40f, 0.00f, // cPos
+                                //Cos(angle_square), Sin(angle_square), 0.0f, 0.0f,
+                                
+                                // TODO(Eric): Size does nothing in the shader atm. How would we do that?
+                                0.0f, 0.0f, 0.0f, 0.0f, // cSize
+                                
+                                0.8f, 0.8f, 0.8f, 1.0f,   // cColor
+                                //Cos(angle_square), Sin(angle_square), 0.8f, 1.0f
+                                
+                                ModelViewProjection
+                            };
+                            
+                            D3D11_MAPPED_SUBRESOURCE mapped;
+                            hr = ID3D11DeviceContext_Map(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+                            AssertHR(hr);
+                            memcpy(mapped.pData, ConstantData, sizeof(ConstantData));
+                            ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0);
+                            
+                            ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 6, 0, 0);
+                            
+                        }
+                    }break;
+                }
                 
-                // Vertex Shader
-                ID3D11DeviceContext_VSSetConstantBuffers(d3d->DeviceContext, 0, 1, &GameState->RenderInfos[RenderInfoType_Square].ConstantBuffer);
-                ID3D11DeviceContext_VSSetShader(d3d->DeviceContext, GameState->RenderInfos[RenderInfoType_Square].VertexShader, NULL, 0);
-                
-                // Rasterizer Stage
-                ID3D11DeviceContext_RSSetViewports(d3d->DeviceContext, 1, &viewport);
-                ID3D11DeviceContext_RSSetState(d3d->DeviceContext, d3d->RasterizerState);
-                
-                // Pixel Shader
-                //ID3D11DeviceContext_PSSetSamplers(d3d->DeviceContext, 0, 1, &d3d->Sampler);
-                //ID3D11DeviceContext_PSSetShaderResources(d3d->DeviceContext, 0, 1, &d3d->TextureView);
-                ID3D11DeviceContext_PSSetShader(d3d->DeviceContext, GameState->RenderInfos[RenderInfoType_Square].PixelShader, NULL, 0);
-                
-                // Output Merger
-                ID3D11DeviceContext_OMSetBlendState(d3d->DeviceContext, d3d->BlendState, NULL, ~0U);
-                ID3D11DeviceContext_OMSetDepthStencilState(d3d->DeviceContext, d3d->DepthState, 0);
-                ID3D11DeviceContext_OMSetRenderTargets(d3d->DeviceContext, 1, &d3d->RenderTargetView, d3d->DepthStencilView);
-                
-                
-                ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 6, 0, 0);
             }
             
             
@@ -481,6 +452,41 @@ I don't know how to just change a couple of them. Right?
 Oh, you know what.
 It's on the transform, which is going straight into matrix multiplication transforms
 those do size, rotation and scale. I did a bunch of exmaples on each of those already.
+
+*/
+
+/*
+TODO(Eric): (9/23/2021):
+
+I've gotten the game_state into the permanent_arena, so that's good
+Now I'm trying to get the delta time from the win32 timer..
+os->GetTime() gets a cumulative time the app has been running
+
+we are getting in pretty good shape, I've done a bunch of things I wanted to do
+It should be easier to draw more things, just need to make a few functions to help
+It still seems a little messy, but it's not bad. It's still really clear what's happening
+there's just some really long lines
+
+    Things to learn immediately:
+    - projection matrix + world coordinates, and how I can make it 2d
+      -- I think this can just be the regular 3d camera, but the camera movement is limited. only moves side-side, up-down
+- depth testing. How to handle z values in a 2d game
+
+
+*/
+
+/*
+TODO(Eric): (9/30/2021):
+
+Triangle is setting Z of 0 in the shader
+My Squares are 0 on init, and adding the constant buffer for its Z value
+
+OK. So two rectangles, the z value does effect which is in front
+When they are the same, the last one rendered is in front.
+The triangle's Z value is 0, but is always in front...
+
+With how it's set up currently, a higher Z value is closer and shows on top.
+
 
 */
 

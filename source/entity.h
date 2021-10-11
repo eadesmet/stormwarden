@@ -12,23 +12,13 @@ struct vertex_data
     v3 Color;
 };
 
-
-typedef struct render_info render_info;
-struct render_info
+typedef struct game_camera game_camera;
+struct game_camera
 {
-    ID3D11InputLayout *InputLayout;
-    ID3D11Buffer *VertexBuffer;
-    ID3D11Buffer *IndexBuffer;
-    ID3D11VertexShader *VertexShader;
-    ID3D11PixelShader *PixelShader;
-    ID3D11Buffer *ConstantBuffer;
-};
-
-enum render_info_type
-{
-    RenderInfoType_Square,
+    v3 Position;
+    v3 LookAt;
     
-    RenderInfoType_Count
+    m4 Perspective;
 };
 
 typedef struct entity_square entity_square;
@@ -40,6 +30,8 @@ struct entity_square
 typedef struct game_state game_state;
 struct game_state
 {
+    game_camera Camera;
+    
     render_info RenderInfos[RenderInfoType_Count];
     
     u32 SquareCount;

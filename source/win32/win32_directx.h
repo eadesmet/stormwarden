@@ -25,28 +25,34 @@ struct d3d11_info
     
     IDXGISwapChain *SwapChain;
     
-    // NOTE(Eric): I feel like this group is all tied closely together.
-    // So the question becomes: Do we need all of these things for each different type of 'object' we want to render?
-    ID3D11InputLayout *InputLayout;
-    
-    // NOTE(Eric): Testing drawing multiple things
-    //ID3D11Buffer *VertexBuffer;
-    ID3D11Buffer *VertexBuffer[16];
-    u16 VertexBufferCount;
-    
-    ID3D11VertexShader *VertexShader[16];
-    u16 VertexShaderCount;
-    
-    ID3D11PixelShader *PixelShader[16];
-    u16 PixelShaderCount;
-    
     ID3D11SamplerState* Sampler;
     ID3D11RasterizerState* RasterizerState;
     ID3D11BlendState* BlendState;
     ID3D11DepthStencilState* DepthState;
     ID3D11ShaderResourceView* TextureView;
-    ID3D11Buffer *ConstantBuffer;
     
     ID3D11RenderTargetView *RenderTargetView;
     ID3D11DepthStencilView *DepthStencilView;
+};
+
+
+typedef struct render_info render_info;
+struct render_info
+{
+    ID3D11InputLayout *InputLayout;
+    ID3D11Buffer *VertexBuffer;
+    ID3D11Buffer *IndexBuffer;
+    ID3D11VertexShader *VertexShader;
+    ID3D11PixelShader *PixelShader;
+    ID3D11Buffer *ConstantBuffer;
+};
+
+typedef u32 render_info_type;
+enum
+{
+    RenderInfoType_SampleTriangle = (1<<0),
+    RenderInfoType_Square         = (1<<1),
+    
+    
+    RenderInfoType_Count          = (1<<2)
 };

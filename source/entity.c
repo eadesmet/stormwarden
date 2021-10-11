@@ -2,6 +2,7 @@
 
 #include "entity.h"
 
+#if 0
 internal void
 CreateSquare(game_state *GameState)
 {
@@ -18,4 +19,20 @@ CreateSquare(game_state *GameState)
     };
     
     GameState->Squares[GameState->SquareCount++] = NewSquare;
+}
+#endif
+
+internal game_camera
+CreateCamera(f32 Fov, f32 AspectRatio)
+{
+    game_camera Result = {0};
+    
+    Result.Position = v3(0.0f, 0.0f, 2.0f);
+    
+    // NOTE(Eric): What could M4LookAt() do for me here?
+    Result.LookAt = v3(0.0f, 0.0f, -1.0f);
+    
+    Result.Perspective = M4Perspective(Fov, AspectRatio, 0.1f, 1000.0f);
+    
+    return Result;
 }

@@ -29,7 +29,7 @@ Texture2D<float4> texture0 : register(t0);
 
 PS_INPUT vs(VS_INPUT input)
 {
-    // NOTE(Eric): Commented out because first test is not using the matrix transform
+    
     float2 pos = mul(uTransform, input.pos).xy;
     //float2 pos = input.pos;
     

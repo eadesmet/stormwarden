@@ -22,16 +22,22 @@ cbuffer cbuffer0 : register(b0)
     float4 cPos;
     float4 cSize;
     float4 cColor;
+    
+    float4x4 cModelViewProj;
 }
 
 
 PS_INPUT vs(VS_INPUT input)
 {
-    float3 pos = input.pos;
-    
     PS_INPUT output;
-    //output.pos = float4(pos, 1.f) + float4(cPos, 0.f);
-    output.pos = float4(pos, 1.f);
+    
+    float4 InputPos = float4(input.pos, 1.f) + cPos;
+    
+    float4 MultipliedPos = mul(InputPos, cModelViewProj);
+    //output.pos = InputPos;
+    
+    output.pos = float4(MultipliedPos.xy, 0.f, 1.f);
+    
     output.uv = float2(0.f, 0.f); //input.uv;
     output.color = cColor;//float4(input.color, 1.f);
     return output;

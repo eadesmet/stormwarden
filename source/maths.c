@@ -14,6 +14,14 @@ V3MinusV3(v3 a, v3 b)
 }
 
 internal v3
+V3Negate(v3 a)
+{
+    v3 Result = { -a.x, -a.y, -a.z };
+    
+    return Result;
+}
+
+internal v3
 V3MultiplyF32(v3 v, f32 f)
 {
     v.x *= f;
