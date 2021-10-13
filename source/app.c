@@ -39,6 +39,13 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
     
     InitRenderer(d3d, GameState);
     
+    
+    //~ NOTE(Eric): Init many squares?
+    for (u32 Index = 0; Index < 16; Index++)
+    {
+        //entity_square *NewSquare = &GameState->Squares[Index];
+        
+    }
 }
 
 APP_HOT_LOAD// NOTE(Eric): INIT AND ON CODE-RELOAD
@@ -298,6 +305,9 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                             
                             m4 Model = M4InitD(1.0f);
                             
+                            v3 Scale = v3(0.5f, 0.5f, 0.0f);
+                            Model = M4ScaleV3(Scale);
+                            
                             m4 View = M4TranslateV3(V3Negate(Camera->Position));
                             m4 ModelView = M4MultiplyM4(Model, View);
                             
@@ -305,7 +315,7 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                             
                             square_constant ConstantData = 
                             {
-                                {-0.00f, +0.00f, 0.20f, 0.00f}, // cPos
+                                {-0.00f, +0.00f, 0.30f, 0.00f}, // cPos
                                 //Cos(angle_square), Sin(angle_square), 0.0f, 0.0f,
                                 
                                 // TODO(Eric): Size does nothing in the shader atm. How would we do that?
@@ -324,10 +334,11 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                             ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0);
                             
                             // Draw 6 vertices, from the 4 indexes we have set in the vertex buffer (two triangles)
-                            //ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 6, 0, 0);
+                            ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 6, 0, 0);
                         }
                         
                         //~ NOTE(Eric): Test draw a second square, with a different z-value to test depth
+                        // Lower Z == closer to the camera
                         {
                             m4 Model = M4InitD(1.0f);
                             
@@ -343,12 +354,15 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                             // so we have a solid understanding of all of it from the ground up.
                             //-
                             
-                            v3 Offset = v3(-0.5f, 1.5f, 0.0f);
-                            Model.elements[3][0] = Offset.x;
-                            Model.elements[3][1] = Offset.y;
-                            Model.elements[3][2] = Offset.z;
-                            Model.elements[3][3] = 1.0f;
+                            /*
+                                                                                    v3 Offset = v3(-0.5f, 1.5f, 0.0f);
+                                                                                    Model.elements[3][0] = Offset.x;
+                                                                                    Model.elements[3][1] = Offset.y;
+                                                                                    Model.elements[3][2] = Offset.z;
+                                                                                    Model.elements[3][3] = 1.0f;
+                                                                                    */
                             
+                            // NOTE(Eric): What I should do now is figure out how to use my own coordinates.
                             
                             m4 View = M4TranslateV3(V3Negate(Camera->Position));
                             m4 ModelView = M4MultiplyM4(Model, View);
@@ -357,7 +371,7 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                             
                             square_constant ConstantData[] = 
                             {
-                                +0.20f, -0.40f, 0.40f, 0.00f, // cPos
+                                +0.20f, +0.40f, 0.40f, 0.00f, // cPos
                                 //Cos(angle_square), Sin(angle_square), 0.0f, 0.0f,
                                 
                                 // TODO(Eric): Size does nothing in the shader atm. How would we do that?
@@ -377,6 +391,48 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                             
                             ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 6, 0, 0);
                             
+                        }
+                        
+                        // NOTE(Eric): Draw many squares?
+                        if (0)
+                        {
+                            v3 Scale = v3(0.2f, 0.2f, 0.0f);
+                            m4 Model = M4ScaleV3(Scale);
+                            m4 View = M4TranslateV3(V3Negate(Camera->Position));
+                            m4 ModelView = M4MultiplyM4(Model, View);
+                            m4 ModelViewProjection = M4MultiplyM4(ModelView, Camera->Perspective);
+                            
+                            for (u32 i = 0; i < 16; i++)
+                            {
+                                f32 NewX = Lerp(-1.0f, 1.0f, i / 15.0f);
+                                
+                                for (u32 j = 0; j < 16; j++)
+                                {
+                                    f32 NewY = Lerp(-1.0f, 1.0f, j / 15.0f);
+                                    
+                                    square_constant ConstantData[] = 
+                                    {
+                                        NewX - 1.5f, NewY, 0.10f, 0.00f, // cPos
+                                        //Cos(angle_square), Sin(angle_square), 0.0f, 0.0f,
+                                        
+                                        // TODO(Eric): Size does nothing in the shader atm. How would we do that?
+                                        0.0f, 0.0f, 0.0f, 0.0f, // cSize
+                                        
+                                        NewX, NewY, 0.2f, 1.0f,   // cColor
+                                        //Cos(angle_square), Sin(angle_square), 0.8f, 1.0f
+                                        
+                                        ModelViewProjection
+                                    };
+                                    
+                                    D3D11_MAPPED_SUBRESOURCE mapped;
+                                    hr = ID3D11DeviceContext_Map(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+                                    AssertHR(hr);
+                                    memcpy(mapped.pData, ConstantData, sizeof(ConstantData));
+                                    ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0);
+                                    
+                                    ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 6, 0, 0);
+                                }
+                            }
                         }
                     }break;
                 }

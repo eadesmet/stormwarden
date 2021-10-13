@@ -36,7 +36,7 @@ PS_INPUT vs(VS_INPUT input)
     float4 MultipliedPos = mul(InputPos, cModelViewProj);
     //output.pos = InputPos;
     
-    output.pos = float4(MultipliedPos.xy, 0.f, 1.f);
+    output.pos = float4(MultipliedPos.xy, cPos.z, 1.f);
     
     output.uv = float2(0.f, 0.f); //input.uv;
     output.color = cColor;//float4(input.color, 1.f);
