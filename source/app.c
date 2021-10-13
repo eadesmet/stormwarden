@@ -210,6 +210,9 @@ APP_UPDATE// NOTE(Eric): PER FRAME
         //~ NOTE(Eric): Render to screen
         //~
         {
+            angle += DeltaTime * 2.0f * (float)PI / 20.0f; // full rotation in 20 seconds
+            angle = fmodf(angle, 2.0f * (float)PI);
+            
             // NOTE(Eric): Common renderer things that are either shared, or in d3d_info instead of render_info
             // Rasterizer Stage
             ID3D11DeviceContext_RSSetViewports(d3d->DeviceContext, 1, &WindowViewport);
@@ -234,8 +237,8 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                         render_info SampleTriangleInfo = GameState->RenderInfos[RenderInfoType_SampleTriangle];
                         
                         // Update constant buffer (setup rotation matrix in uniform)
-                        angle += DeltaTime * 2.0f * (float)PI / 20.0f; // full rotation in 20 seconds
-                        angle = fmodf(angle, 2.0f * (float)PI);
+                        //angle += DeltaTime * 2.0f * (float)PI / 20.0f; // full rotation in 20 seconds
+                        //angle = fmodf(angle, 2.0f * (float)PI);
                         
                         float aspect = (float)height / width;
                         float matrix[] =
@@ -298,11 +301,6 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                         {
                             // Update the SQUARE constant buffer
                             
-                            // This should go:
-                            // Model to World
-                            // World to View
-                            // View to Projection
-                            
                             m4 Model = M4InitD(1.0f);
                             
                             v3 Scale = v3(0.5f, 0.5f, 0.0f);
@@ -334,7 +332,7 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                             ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0);
                             
                             // Draw 6 vertices, from the 4 indexes we have set in the vertex buffer (two triangles)
-                            ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 6, 0, 0);
+                            //ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 6, 0, 0);
                         }
                         
                         //~ NOTE(Eric): Test draw a second square, with a different z-value to test depth
@@ -342,7 +340,7 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                         {
                             m4 Model = M4InitD(1.0f);
                             
-                            v3 Scale = v3(0.5f, 0.5f, 0.0f);
+                            v3 Scale = v3(0.1f, 0.1f, 0.0f);
                             Model = M4ScaleV3(Scale);
                             
                             // NOTE(Eric): Testing out an 'offset', to hopefully change it's position.
@@ -371,7 +369,7 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                             
                             square_constant ConstantData[] = 
                             {
-                                +0.20f, +0.40f, 0.40f, 0.00f, // cPos
+                                +4.40f, +0.40f, 0.01f, 0.00f, // cPos
                                 //Cos(angle_square), Sin(angle_square), 0.0f, 0.0f,
                                 
                                 // TODO(Eric): Size does nothing in the shader atm. How would we do that?
@@ -394,44 +392,44 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                         }
                         
                         // NOTE(Eric): Draw many squares?
-                        if (0)
+                        if (1)
                         {
-                            v3 Scale = v3(0.2f, 0.2f, 0.0f);
+                            v3 Scale = v3(0.1f, 0.1f, 0.0f);
                             m4 Model = M4ScaleV3(Scale);
                             m4 View = M4TranslateV3(V3Negate(Camera->Position));
                             m4 ModelView = M4MultiplyM4(Model, View);
                             m4 ModelViewProjection = M4MultiplyM4(ModelView, Camera->Perspective);
                             
-                            for (u32 i = 0; i < 16; i++)
+                            u32 NumSquares = 8;
+                            for (u32 i = 0; i <= NumSquares; i++)
                             {
-                                f32 NewX = Lerp(-1.0f, 1.0f, i / 15.0f);
-                                
-                                for (u32 j = 0; j < 16; j++)
+                                f32 NewX = Lerp(-1.0f, 1.0f, i / NumSquares);
+                                v4 NewColor =
                                 {
-                                    f32 NewY = Lerp(-1.0f, 1.0f, j / 15.0f);
+                                    Lerp(0.0f, 1.0f, i / NumSquares),
+                                    angle,
+                                    0.5f, 1.0f
+                                };
+                                
+                                square_constant ConstantData = 
+                                {
+                                    NewX, -0.9f, 0.10f, 0.00f, // cPos
                                     
-                                    square_constant ConstantData[] = 
-                                    {
-                                        NewX - 1.5f, NewY, 0.10f, 0.00f, // cPos
-                                        //Cos(angle_square), Sin(angle_square), 0.0f, 0.0f,
-                                        
-                                        // TODO(Eric): Size does nothing in the shader atm. How would we do that?
-                                        0.0f, 0.0f, 0.0f, 0.0f, // cSize
-                                        
-                                        NewX, NewY, 0.2f, 1.0f,   // cColor
-                                        //Cos(angle_square), Sin(angle_square), 0.8f, 1.0f
-                                        
-                                        ModelViewProjection
-                                    };
+                                    0.0f, 0.0f, 0.0f, 0.0f, // cSize
                                     
-                                    D3D11_MAPPED_SUBRESOURCE mapped;
-                                    hr = ID3D11DeviceContext_Map(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-                                    AssertHR(hr);
-                                    memcpy(mapped.pData, ConstantData, sizeof(ConstantData));
-                                    ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0);
+                                    NewColor,   // cColor
                                     
-                                    ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 6, 0, 0);
-                                }
+                                    ModelViewProjection
+                                };
+                                
+                                D3D11_MAPPED_SUBRESOURCE mapped;
+                                hr = ID3D11DeviceContext_Map(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+                                AssertHR(hr);
+                                memcpy(mapped.pData, &ConstantData, sizeof(ConstantData));
+                                ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0);
+                                
+                                ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 6, 0, 0);
+                                
                             }
                         }
                     }break;
