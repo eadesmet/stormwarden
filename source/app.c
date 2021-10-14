@@ -343,6 +343,7 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                             v3 Scale = v3(0.1f, 0.1f, 0.0f);
                             Model = M4ScaleV3(Scale);
                             
+                            
                             // NOTE(Eric): Testing out an 'offset', to hopefully change it's position.
                             // However, I'm manually setting the w in the shader, so I don't think this is used.
                             
@@ -352,13 +353,12 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                             // so we have a solid understanding of all of it from the ground up.
                             //-
                             
-                            /*
-                                                                                    v3 Offset = v3(-0.5f, 1.5f, 0.0f);
-                                                                                    Model.elements[3][0] = Offset.x;
-                                                                                    Model.elements[3][1] = Offset.y;
-                                                                                    Model.elements[3][2] = Offset.z;
-                                                                                    Model.elements[3][3] = 1.0f;
-                                                                                    */
+                            
+                            v3 Offset = v3(-0.5f, 1.5f, 0.0f);
+                            Model.elements[3][0] = Offset.x;
+                            Model.elements[3][1] = Offset.y;
+                            Model.elements[3][2] = Offset.z;
+                            Model.elements[3][3] = 1.0f;
                             
                             // NOTE(Eric): What I should do now is figure out how to use my own coordinates.
                             
@@ -388,18 +388,12 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                             // Perspective == ???
                             
                             
-                            // NOTE(Eric): TestModelViewProj and ModelViewProjection are the same!
-                            m4 TestModelView = M4MultiplyM4(Model, Camera->LookAt);
-                            m4 TestModelViewProj = M4MultiplyM4(TestModelView, Camera->Perspective);
-                            
-                            m4 View = M4TranslateV3(V3Negate(Camera->Position));
-                            m4 ModelView = M4MultiplyM4(Model, View);
-                            
+                            m4 ModelView = M4MultiplyM4(Model, Camera->LookAt);
                             m4 ModelViewProjection = M4MultiplyM4(ModelView, Camera->Perspective);
                             
                             square_constant ConstantData[] = 
                             {
-                                -4.40f, +0.40f, 0.01f, 0.00f, // cPos
+                                -0.00f, +0.00f, 0.01f, 0.00f, // cPos
                                 //Cos(angle_square), Sin(angle_square), 0.0f, 0.0f,
                                 
                                 // TODO(Eric): Size does nothing in the shader atm. How would we do that?
