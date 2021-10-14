@@ -30,7 +30,8 @@ CreateCamera(f32 Fov, f32 AspectRatio)
     Result.Position = v3(0.0f, 0.0f, 2.0f);
     
     // NOTE(Eric): What could M4LookAt() do for me here?
-    Result.LookAt = v3(0.0f, 0.0f, -1.0f);
+    Result.LookAt = M4LookAt(Result.Position, v3(0.0f, 0.0f, 0.0f), v3(0.0f, 1.0f, 0.0f));
+    //Result.LookAt = v3(0.0f, 0.0f, -1.0f);
     
     Result.Perspective = M4Perspective(Fov, AspectRatio, 0.1f, 1000.0f);
     

@@ -16,7 +16,7 @@ typedef struct game_camera game_camera;
 struct game_camera
 {
     v3 Position;
-    v3 LookAt;
+    m4 LookAt;
     
     m4 Perspective;
 };

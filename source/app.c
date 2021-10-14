@@ -362,6 +362,36 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                             
                             // NOTE(Eric): What I should do now is figure out how to use my own coordinates.
                             
+                            // NOTE(Eric): A good point in the arcsynth tutorials is that I shouldn't try to force this to work.
+                            // Figure out what I need, and do that. Don't try to force all MVP matrices to work,
+                            // For example, since we are only doing 2d, we might not even need any matrix multiplication at all
+                            // (though, I think it would be needed if we wanted cool zooming in/out effects?)
+                            // Like.. If we just want our own 2d coordinates, we set that up and do our own conversion.
+                            // If our coordinates are just the size of the window, origin at the bottom left,
+                            // it can be the screen center is 0,0 in NDC.
+                            
+                            v2 ExamplePos = {200, 400};
+                            f32 ConvertedX = Lerp(-1, 1, ExamplePos.x/(f32)width);
+                            f32 ConvertedY = Lerp(-1, 1, ExamplePos.y/(f32)height);
+                            
+                            // NOTE(Eric): Sizing is going to be tricky,
+                            // because it's kinda baked into the vertex buffer.
+                            // And we've figured out we can use M4ScaleV3() to change the size,
+                            // but we don't know the actual size before it gets sent to the shader. Or do we?
+                            // and again.. This is an incomplete way of doing it, and will be completely flat.
+                            // I want a perspective 2d, where I can zoom in/out, and move the camera around left/right/up/down
+                            // and have the 2d things work kinda 3d. idk how to put it.
+                            
+                            // Model to LookAt to Perspective
+                            // Model == the thing we are drawing, with it's own coordinates and scale
+                            // LookAt == the point the camera is looking at, or the 'world' I think..
+                            // Perspective == ???
+                            
+                            
+                            // NOTE(Eric): TestModelViewProj and ModelViewProjection are the same!
+                            m4 TestModelView = M4MultiplyM4(Model, Camera->LookAt);
+                            m4 TestModelViewProj = M4MultiplyM4(TestModelView, Camera->Perspective);
+                            
                             m4 View = M4TranslateV3(V3Negate(Camera->Position));
                             m4 ModelView = M4MultiplyM4(Model, View);
                             
@@ -369,7 +399,7 @@ APP_UPDATE// NOTE(Eric): PER FRAME
                             
                             square_constant ConstantData[] = 
                             {
-                                +4.40f, +0.40f, 0.01f, 0.00f, // cPos
+                                -4.40f, +0.40f, 0.01f, 0.00f, // cPos
                                 //Cos(angle_square), Sin(angle_square), 0.0f, 0.0f,
                                 
                                 // TODO(Eric): Size does nothing in the shader atm. How would we do that?
