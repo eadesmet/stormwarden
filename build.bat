@@ -12,19 +12,18 @@ set common_link_flags= opengl32.lib -opt:ref -incremental:no /DEBUG:FULL
 set platform_link_flags= gdi32.lib user32.lib winmm.lib %common_link_flags%
 
 REM NOTE(Eric): Shader Compilation
-pushd source\shaders
+REM pushd source\shaders
 
-start /b /wait "" "fxc.exe"  /nologo /T vs_5_0 /E vs /Od /WX /Zpc /Ges /Fh d3d11_vshader.h /Vn d3d11_vshader /Qstrip_reflect /Qstrip_debug /Qstrip_priv shaders.hlsl
+REM start /b /wait "" "fxc.exe"  /nologo /T vs_5_0 /E vs /Od /WX /Zpc /Ges /Fh d3d11_vshader.h /Vn d3d11_vshader /Qstrip_reflect /Qstrip_debug /Qstrip_priv shaders.hlsl
 
-start /b /wait "" "fxc.exe"  /nologo /T ps_5_0 /E ps /Od /WX /Zpc /Ges /Fh d3d11_pshader.h /Vn d3d11_pshader /Qstrip_reflect /Qstrip_debug /Qstrip_priv shaders.hlsl
+REM start /b /wait "" "fxc.exe"  /nologo /T ps_5_0 /E ps /Od /WX /Zpc /Ges /Fh d3d11_pshader.h /Vn d3d11_pshader /Qstrip_reflect /Qstrip_debug /Qstrip_priv shaders.hlsl
 
 REM NOTE(Eric): My square Shader
-start /b /wait "" "fxc.exe"  /nologo /T vs_5_0 /E vs /Od /WX /Zpc /Ges /Fh d3d11_square_vshader.h /Vn d3d11_square_vshader /Qstrip_reflect /Qstrip_debug /Qstrip_priv square_shader.hlsl
+REM start /b /wait "" "fxc.exe"  /nologo /T vs_5_0 /E vs /Od /WX /Zpc /Ges /Fh d3d11_square_vshader.h /Vn d3d11_square_vshader /Qstrip_reflect /Qstrip_debug /Qstrip_priv square_shader.hlsl
 
-start /b /wait "" "fxc.exe"  /nologo /T ps_5_0 /E ps /Od /WX /Zpc /Ges /Fh d3d11_square_pshader.h /Vn d3d11_square_pshader /Qstrip_reflect /Qstrip_debug /Qstrip_priv square_shader.hlsl
+REM start /b /wait "" "fxc.exe"  /nologo /T ps_5_0 /E ps /Od /WX /Zpc /Ges /Fh d3d11_square_pshader.h /Vn d3d11_square_pshader /Qstrip_reflect /Qstrip_debug /Qstrip_priv square_shader.hlsl
 
-
-popd
+REM popd
 
 if not exist build mkdir build
 pushd build

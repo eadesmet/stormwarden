@@ -16,25 +16,25 @@ struct GL_State
     m4 CameraToClipMatrix;
 };
 
-global char* PATH_VS_1 = "../source/shaders/SimpleVS.vert";
-global char* PATH_FS_1 = "../source/shaders/PositionFS.frag";
+global char* PATH_VS_1 = "../source/shaders/gl_examples/SimpleVS.vert";
+global char* PATH_FS_1 = "../source/shaders/gl_examples/PositionFS.frag";
 
-global char* PATH_VS_2 = "../source/shaders/2_PositionVS.vert";
-global char* PATH_FS_2 = "../source/shaders/2_PositionFS.frag";
+global char* PATH_VS_2 = "../source/shaders/gl_examples/2_PositionVS.vert";
+global char* PATH_FS_2 = "../source/shaders/gl_examples/2_PositionFS.frag";
 
-global char* PATH_VS_3 = "../source/shaders/3_PositionOffset.vert";
-global char* PATH_VS_3_CALC = "../source/shaders/3_CalcOffset.vert";
-global char* PATH_FS_3_CALC = "../source/shaders/3_CalcColor.frag";
+global char* PATH_VS_3 = "../source/shaders/gl_examples/3_PositionOffset.vert";
+global char* PATH_VS_3_CALC = "../source/shaders/gl_examples/3_CalcOffset.vert";
+global char* PATH_FS_3_CALC = "../source/shaders/gl_examples/3_CalcColor.frag";
 
-global char* PATH_VS_4_ORTHO_CUBE = "../source/shaders/4_OrthoCube.vert";
-global char* PATH_VS_4_MANUAL_PERSPECTIVE = "../source/shaders/4_ManualPerspective.vert";
+global char* PATH_VS_4_ORTHO_CUBE = "../source/shaders/gl_examples/4_OrthoCube.vert";
+global char* PATH_VS_4_MANUAL_PERSPECTIVE = "../source/shaders/gl_examples/4_ManualPerspective.vert";
 
-global char* PATH_VS_4_MATRIX_PERSPECTIVE = "../source/shaders/4_MatrixPerspective.vert";
-global char* PATH_FS_4_ORTHO_CUBE = "../source/shaders/4_OrthoCube.frag";
+global char* PATH_VS_4_MATRIX_PERSPECTIVE = "../source/shaders/gl_examples/4_MatrixPerspective.vert";
+global char* PATH_FS_4_ORTHO_CUBE = "../source/shaders/gl_examples/4_OrthoCube.frag";
 
 
-global char* PATH_VS_6 = "../source/shaders/6_PosColorLocalTransform.vert";
-global char* PATH_FS_6 = "../source/shaders/6_ColorPassthrough.frag";
+global char* PATH_VS_6 = "../source/shaders/gl_examples/6_PosColorLocalTransform.vert";
+global char* PATH_FS_6 = "../source/shaders/gl_examples/6_ColorPassthrough.frag";
 
 
 global GL_State gls_;
