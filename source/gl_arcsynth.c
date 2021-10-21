@@ -386,7 +386,3 @@ SampleRotations(f32 ElapsedTime, SampleRotation WhichRotation)
 
 
 
-
-
-
-

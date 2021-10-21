@@ -35,5 +35,7 @@ CreateCamera(f32 Fov, f32 AspectRatio)
     
     Result.Perspective = M4Perspective(Fov, AspectRatio, 0.1f, 1000.0f);
     
+    Result.CameraToClip = M4CameraToClip(45.0f);
+    
     return Result;
 }

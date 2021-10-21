@@ -14,6 +14,13 @@ struct GL_State
     GLuint CameraToClipMatrixUnif;
     
     m4 CameraToClipMatrix;
+    
+    // NOTE(Eric): This is a stupid hack. Somehow even though it's loading this procedure in
+    // LoadAllOpenGLProcedures(), it's still not resolving the external symbol?
+    // But when called manually, it works. I DON'T KNOW MAN.
+    // ALSO not available from the gl_core_46.c files, generated from galogen
+    // Is it from some extension??? Maybe a problem with my machine's driver??
+    void (*GL_ClearDepthF)(float);
 };
 
 global char* PATH_VS_1 = "../source/shaders/gl_examples/SimpleVS.vert";

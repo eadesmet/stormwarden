@@ -559,7 +559,8 @@ WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR lp_cmd_line, int n_sh
             goto quit;
         }
     }
-    else // NOTE(Eric): DirectX Initialization
+    
+    // NOTE(Eric): DirectX Initialization
     {
         os->d3d = AcquireD3D11Renderer(window_handle, 1);
     }

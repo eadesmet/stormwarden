@@ -21,14 +21,6 @@
 #include "render.c"
 
 
-// NOTE(Eric): This is a stupid hack. Somehow even though it's loading this procedure in
-// LoadAllOpenGLProcedures(), it's still not resolving the external symbol?
-// But when called manually, it works. I DON'T KNOW MAN.
-// ALSO not available from the gl_core_46.c files, generated from galogen
-// Is it from some extension??? Maybe a problem with my machine's driver??
-void (*GL_ClearDepthF)(float);
-
-
 
 global LARGE_INTEGER G_Freq, G_c1;
 
@@ -37,21 +29,16 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
     os = os_;
     game_state *GameState = (game_state *)M_ArenaPush(&os->permanent_arena, sizeof(game_state));
     
-    //d3d11_info *d3d = &os->d3d;
-    //f32 AspectRatio = (f32)((f32)os->window_size.width / (f32)os->window_size.height);
-    //GameState->Camera = CreateCamera(86.0f, AspectRatio);
-    
     // TODO(Eric): Replace this with our own Timer, based on these calls and luna's timer
     QueryPerformanceFrequency(&G_Freq);
     QueryPerformanceCounter(&G_c1);
     
-    // NOTE(Eric): Init D3D
-    //InitRenderer(d3d, GameState);
-    
+#if 0
     //~ NOTE(Eric): OpenGL
     GLS = &gls_;
     //LoadAllOpenGLProcedures();
-    GL_ClearDepthF = os->LoadOpenGLProcedure("glClearDepthf");
+    //void *GL_ClearDepthF = os->LoadOpenGLProcedure("glClearDepthf");
+    GLS->GL_ClearDepthF = os->LoadOpenGLProcedure("glClearDepthf");
     
     // TODO(Eric): Clean this up and load/compile/createprogram in one step
     void* ShaderData = M_ArenaPush(&os->frame_arena, 2056);
@@ -130,7 +117,16 @@ APP_PERMANENT_LOAD// NOTE(Eric): INIT
     glDepthMask(GL_TRUE);
     glDepthFunc(GL_LEQUAL);
     glDepthRange(0.0f, 1.0f);
+#else
     
+    // NOTE(Eric): Init D3D
+    d3d11_info *d3d = &os->d3d;
+    f32 AspectRatio = (f32)((f32)os->window_size.width / (f32)os->window_size.height);
+    GameState->Camera = CreateCamera(86.0f, AspectRatio);
+    
+    InitRenderer(d3d, GameState);
+    
+#endif
 }
 
 APP_HOT_LOAD// NOTE(Eric): INIT AND ON CODE-RELOAD
@@ -142,7 +138,6 @@ APP_HOT_UNLOAD {}
 
 APP_UPDATE// NOTE(Eric): PER FRAME
 {
-    //d3d11_info *d3d = &os->d3d;
     game_state *GameState = (game_state *)os->permanent_arena.base;
     
     HRESULT hr;
@@ -155,6 +150,7 @@ APP_UPDATE// NOTE(Eric): PER FRAME
     f32 DeltaTime = (float)((double)(c2.QuadPart - G_c1.QuadPart) / G_Freq.QuadPart);
     G_c1 = c2;
     
+#if 0
     if (os->resized)
     {
         GLS->CameraToClipMatrix.elements[0][0] = fFrustumScale / (os->window_size.width / (float)os->window_size.height);
@@ -208,7 +204,7 @@ APP_UPDATE// NOTE(Eric): PER FRAME
     }
     
     glClearColor(0.2f, 0.2f, 0.2f, 0.0f);
-    GL_ClearDepthF(1.0f);//glCearDepthf(1.0f);
+    GLS->GL_ClearDepthF(1.0f);//glCearDepthf(1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     
     glUseProgram(GLS->theProgram);
@@ -243,6 +239,379 @@ APP_UPDATE// NOTE(Eric): PER FRAME
     glUseProgram(0);
     
     os->RefreshScreen();
+#else
+    //~ NOTE(Eric): D3D
+    d3d11_info *d3d = &os->d3d;
+    
+    // NOTE(Eric): Used for sample triangle 
+    global f32 angle = 0;
+    
+    // NOTE(Eric): Camera
+    game_camera *Camera = &GameState->Camera;
+    f32 CameraSpeed = 5.0f; // Meters per second
+    f32 CameraMoveAmount = CameraSpeed * DeltaTime;
+    
+    if (d3d->RenderTargetView == NULL || os->resized)
+    {
+        if (d3d->RenderTargetView)
+        {
+            // release old swap chain buffers
+            ID3D11DeviceContext_ClearState(d3d->DeviceContext);
+            ID3D11RenderTargetView_Release(d3d->RenderTargetView);
+            ID3D11DepthStencilView_Release(d3d->DepthStencilView);
+            d3d->RenderTargetView = NULL;
+        }
+        
+        if (os->window_size.width != 0 && os->window_size.height != 0)
+        {
+            // NOTE(Eric): Resize
+            HRESULT hr = IDXGISwapChain_ResizeBuffers(d3d->SwapChain, 0, width, height, DXGI_FORMAT_UNKNOWN, 0);
+            if (FAILED(hr))
+            {
+                LogError("Failed to resize swap chain!");
+            }
+            
+            D3D11_RENDER_TARGET_VIEW_DESC rtDesc =
+            {
+                .Format = DXGI_FORMAT_R8G8B8A8_UNORM, // or use DXGI_FORMAT_R8G8B8A8_UNORM_SRGB for storing sRGB
+                .ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D,
+            };
+            
+            // create RenderTarget view for new backbuffer texture
+            ID3D11Texture2D* backbuffer;
+            hr = IDXGISwapChain_GetBuffer(d3d->SwapChain, 0, &IID_ID3D11Texture2D, (void**)&backbuffer);
+            AssertHR(hr);
+            hr = ID3D11Device_CreateRenderTargetView(d3d->Device, (ID3D11Resource*)backbuffer, &rtDesc, &d3d->RenderTargetView);
+            AssertHR(hr);
+            ID3D11Texture2D_Release(backbuffer);
+            
+            D3D11_TEXTURE2D_DESC depthDesc =
+            {
+                .Width = width,
+                .Height = height,
+                .MipLevels = 1,
+                .ArraySize = 1,
+                .Format = DXGI_FORMAT_D24_UNORM_S8_UINT, // or use DXGI_FORMAT_D32_FLOAT if you don't need stencil
+                .SampleDesc = { 1, 0 },
+                .Usage = D3D11_USAGE_DEFAULT,
+                .BindFlags = D3D11_BIND_DEPTH_STENCIL,
+            };
+            
+            // create new depth stencil texture & DepthStencil view
+            ID3D11Texture2D* depth;
+            hr = ID3D11Device_CreateTexture2D(d3d->Device, &depthDesc, NULL, &depth);
+            AssertHR(hr);
+            hr = ID3D11Device_CreateDepthStencilView(d3d->Device, (ID3D11Resource*)depth, NULL, &d3d->DepthStencilView);
+            AssertHR(hr);
+            ID3D11Texture2D_Release(depth);
+            
+            f32 DegreesToRadian = PI * 2 / 360;
+            f32 FoV_Radians = 45.0f * DegreesToRadian;
+            f32 FrustumScale = 1.0f / Tan(FoV_Radians / 2.0f);
+            GameState->Camera.CameraToClip.elements[0][0] = FrustumScale / (os->window_size.width / (float)os->window_size.height);
+            GameState->Camera.CameraToClip.elements[1][1] = FrustumScale;
+        }
+        
+        os->resized = 0;
+    }
+    
+    if (os->event_count > 0)
+    {
+        // NOTE(Eric): Not sure if this is how I'm supposed to handle events in the app,
+        // but it's working for now.
+        for (u32 EventIndex = 0;
+             EventIndex < os->event_count;
+             EventIndex++)
+        {
+            OS_Event *Event = 0;
+            OS_GetNextEvent(&Event);
+            if(!Event) break;
+            
+            if (Event->type == OS_EventType_KeyPress)
+            {
+                switch(Event->key)
+                {
+                    case Key_W:
+                    {
+                        
+                    }break;
+                    case Key_A:
+                    {
+                        
+                    }break;
+                    case Key_S:
+                    {
+                        
+                    }break;
+                    case Key_D:
+                    {
+                        
+                    }break;
+                    case Key_Space:
+                    {
+                        
+                    }break;
+                    case Key_Esc:
+                    {
+                        os->quit = 1;
+                    }break;
+                    default:break;
+                }
+            }
+            
+            OS_EatEvent(Event);
+        }
+    }
+    
+    if (d3d->RenderTargetView)
+    {
+        // output viewport covering all client area of window
+        D3D11_VIEWPORT WindowViewport =
+        {
+            .TopLeftX = 0,
+            .TopLeftY = 0,
+            .Width = (FLOAT)os->window_size.width,
+            .Height = (FLOAT)os->window_size.height,
+            .MinDepth = 0,
+            .MaxDepth = 1,
+        };
+        
+        FLOAT ClearColor[] = { 0.392f, 0.584f, 0.929f, 1.f };
+        ID3D11DeviceContext_ClearRenderTargetView(d3d->DeviceContext, d3d->RenderTargetView, ClearColor);
+        ID3D11DeviceContext_ClearDepthStencilView(d3d->DeviceContext, d3d->DepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
+        
+        
+        //
+        //~ NOTE(Eric): Render to screen
+        //~
+        {
+            angle += DeltaTime * 2.0f * (float)PI / 20.0f; // full rotation in 20 seconds
+            angle = fmodf(angle, 2.0f * (float)PI);
+            
+            // NOTE(Eric): Common renderer things that are either shared, or in d3d_info instead of render_info
+            // Rasterizer Stage
+            ID3D11DeviceContext_RSSetViewports(d3d->DeviceContext, 1, &WindowViewport);
+            ID3D11DeviceContext_RSSetState(d3d->DeviceContext, d3d->RasterizerState);
+            
+            // Pixel Shader
+            ID3D11DeviceContext_PSSetSamplers(d3d->DeviceContext, 0, 1, &d3d->Sampler);
+            ID3D11DeviceContext_PSSetShaderResources(d3d->DeviceContext, 0, 1, &d3d->TextureView);
+            
+            // Output Merger
+            ID3D11DeviceContext_OMSetBlendState(d3d->DeviceContext, d3d->BlendState, NULL, ~0U);
+            ID3D11DeviceContext_OMSetDepthStencilState(d3d->DeviceContext, d3d->DepthState, 0);
+            ID3D11DeviceContext_OMSetRenderTargets(d3d->DeviceContext, 1, &d3d->RenderTargetView, d3d->DepthStencilView);
+            
+            for (u32 RenderInfoTypeIndex = 0; RenderInfoTypeIndex < RenderInfoType_Count; RenderInfoTypeIndex++)
+            {
+                switch(RenderInfoTypeIndex)
+                {
+#if 0 // Don't draw the traingle for now.
+                    case RenderInfoType_SampleTriangle:
+                    {
+                        render_info SampleTriangleInfo = GameState->RenderInfos[RenderInfoType_SampleTriangle];
+                        
+                        // Update constant buffer (setup rotation matrix in uniform)
+                        //angle += DeltaTime * 2.0f * (float)PI / 20.0f; // full rotation in 20 seconds
+                        //angle = fmodf(angle, 2.0f * (float)PI);
+                        
+                        float aspect = (float)height / width;
+                        float matrix[] =
+                        {
+                            Cos(angle) * aspect, -Sin(angle), 0.f, 0.f,
+                            Sin(angle) * aspect,  Cos(angle), 0.f, 0.f,
+                        };
+                        
+                        D3D11_MAPPED_SUBRESOURCE mapped;
+                        hr = ID3D11DeviceContext_Map(d3d->DeviceContext, (ID3D11Resource*)SampleTriangleInfo.ConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+                        AssertHR(hr);
+                        memcpy(mapped.pData, matrix, sizeof(matrix));
+                        ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)SampleTriangleInfo.ConstantBuffer, 0);
+                        
+                        
+                        // Input Assembler
+                        ID3D11DeviceContext_IASetInputLayout(d3d->DeviceContext, SampleTriangleInfo.InputLayout);
+                        ID3D11DeviceContext_IASetPrimitiveTopology(d3d->DeviceContext, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+                        UINT stride = sizeof(vertex_data);
+                        UINT offset = 0;
+                        ID3D11DeviceContext_IASetVertexBuffers(d3d->DeviceContext, 0, 1, &SampleTriangleInfo.VertexBuffer, &stride, &offset);
+                        
+                        // Vertex Shader
+                        ID3D11DeviceContext_VSSetConstantBuffers(d3d->DeviceContext, 0, 1, &SampleTriangleInfo.ConstantBuffer);
+                        ID3D11DeviceContext_VSSetShader(d3d->DeviceContext, SampleTriangleInfo.VertexShader, NULL, 0);
+                        
+                        // Pixel Shader
+                        ID3D11DeviceContext_PSSetShader(d3d->DeviceContext, SampleTriangleInfo.PixelShader, NULL, 0);
+                        
+                        // draw 3 vertices
+                        ID3D11DeviceContext_Draw(d3d->DeviceContext, 3, 0);
+                        
+                        
+                    }break;
+#endif
+                    case RenderInfoType_Square:
+                    {
+                        render_info SquareInfo = GameState->RenderInfos[RenderInfoType_Square];
+                        
+                        float ElapsedTime = os->GetTime();
+                        
+                        // Input Assembler
+                        UINT stride = sizeof(v3);
+                        UINT offset = 0;
+                        ID3D11DeviceContext_IASetInputLayout(d3d->DeviceContext, SquareInfo.InputLayout);
+                        ID3D11DeviceContext_IASetPrimitiveTopology(d3d->DeviceContext, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+                        ID3D11DeviceContext_IASetVertexBuffers(d3d->DeviceContext, 0, 1, &SquareInfo.VertexBuffer, &stride, &offset);
+                        ID3D11DeviceContext_IASetIndexBuffer(d3d->DeviceContext, SquareInfo.IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+                        
+                        // Vertex Shader
+                        ID3D11DeviceContext_VSSetConstantBuffers(d3d->DeviceContext, 0, 1, &SquareInfo.ConstantBuffer);
+                        ID3D11DeviceContext_VSSetShader(d3d->DeviceContext, SquareInfo.VertexShader, NULL, 0);
+                        
+                        // Rasterizer Stage
+                        ID3D11DeviceContext_RSSetViewports(d3d->DeviceContext, 1, &WindowViewport);
+                        ID3D11DeviceContext_RSSetState(d3d->DeviceContext, d3d->RasterizerState);
+                        
+                        // Pixel Shader
+                        ID3D11DeviceContext_PSSetShader(d3d->DeviceContext, SquareInfo.PixelShader, NULL, 0);
+                        
+                        
+                        {
+                            // Update the SQUARE constant buffer
+                            //v3 Scale = v3(0.5f, 0.5f, 0.0f);
+                            //m4 Model = M4ScaleV3(Scale);
+                            //m4 View = M4TranslateV3(V3Negate(Camera->Position));
+                            //m4 ModelView = M4MultiplyM4(Model, View);
+                            //m4 ModelViewProjection = M4MultiplyM4(ModelView, Camera->Perspective);
+                            m4 ModelViewProjection = M4InitD(1.0f);
+                            
+                            m4 NullRotation = SampleRotations(ElapsedTime, SAMPLEROTATION_RotateZ);
+                            m4 CameraToClip = M4CameraToClip(45.0f);
+                            
+                            square_constant ConstantData = 
+                            {
+                                {-0.00f, +0.00f, 0.00f, 0.00f}, // cPos
+                                
+                                {0.0f, 0.0f, 0.0f, 0.0f}, // cSize
+                                
+                                1.0f, 0.0f, 0.0f, 1.0f, // cColor
+                                
+                                ModelViewProjection,
+                                NullRotation,
+                                CameraToClip
+                            };
+                            
+                            D3D11_MAPPED_SUBRESOURCE ConstantSubresource;
+                            hr = ID3D11DeviceContext_Map(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &ConstantSubresource);
+                            AssertHR(hr);
+                            memcpy(ConstantSubresource.pData, &ConstantData, sizeof(ConstantData));
+                            ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0);
+                            
+                            // Draw 6 vertices, from the 4 indexes we have set in the vertex buffer (two triangles)
+                            ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 6, 0, 0);
+                        }
+                        
+                        {
+                            //v3 Scale = v3(0.1f, 0.1f, 0.0f);
+                            //m4 Model = M4ScaleV3(Scale);
+                            //m4 ModelView = M4MultiplyM4(Model, Camera->LookAt);
+                            //m4 ModelViewProjection = M4MultiplyM4(ModelView, Camera->Perspective);
+                            m4 ModelViewProjection = M4InitD(1.0f);
+                            
+                            m4 Rotation = SampleRotations(ElapsedTime, SAMPLEROTATION_RotateX);
+                            m4 CameraToClip = M4CameraToClip(45.0f);
+                            
+                            square_constant ConstantData[] = 
+                            {
+                                -0.00f, +0.00f, 0.00f, 0.00f, // cPos
+                                
+                                0.0f, 0.0f, 0.0f, 0.0f, // cSize
+                                
+                                0.0f, 1.0f, 0.0f, 1.0f,   // cColor
+                                
+                                ModelViewProjection,
+                                Rotation, // cModelToCamera
+                                CameraToClip // cModelToClip
+                            };
+                            
+                            D3D11_MAPPED_SUBRESOURCE mapped;
+                            hr = ID3D11DeviceContext_Map(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+                            AssertHR(hr);
+                            memcpy(mapped.pData, ConstantData, sizeof(ConstantData));
+                            ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0);
+                            
+                            ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 6, 0, 0);
+                            
+                        }
+                        
+                        // NOTE(Eric): Draw many squares?
+                        if (1)
+                        {
+                            //v3 Scale = v3(0.1f, 0.1f, 0.0f);
+                            //m4 Model = M4ScaleV3(Scale);
+                            //m4 View = M4TranslateV3(V3Negate(Camera->Position));
+                            //m4 ModelView = M4MultiplyM4(Model, View);
+                            //m4 ModelViewProjection = M4MultiplyM4(ModelView, Camera->Perspective);
+                            m4 ModelViewProjection = M4InitD(1.0f);
+                            
+                            m4 Rotation = SampleRotations(ElapsedTime, SAMPLEROTATION_NULL);
+                            Rotation.elements[3][0] = -10.0f; // Offset X
+                            m4 CameraToClip = M4CameraToClip(45.0f);
+                            
+                            u32 NumSquares = 8;
+                            f32 X = 0.0f;
+                            for (u32 i = 0; i <= NumSquares; i++)
+                            {
+                                f32 fudge = (f32)i / (f32)NumSquares;
+                                
+                                X += 1.0f;
+                                
+                                square_constant ConstantData = 
+                                {
+                                    X, fudge, 0.0f, 0.00f, // cPos
+                                    
+                                    0.0f, 0.0f, 0.0f, 0.0f, // cSize
+                                    
+                                    fudge, 0.0f, 1.0f, 1.0f,   // cColor
+                                    
+                                    ModelViewProjection,
+                                    Rotation, // cModelToCamera
+                                    CameraToClip // cModelToClip
+                                };
+                                
+                                D3D11_MAPPED_SUBRESOURCE mapped;
+                                hr = ID3D11DeviceContext_Map(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+                                AssertHR(hr);
+                                memcpy(mapped.pData, &ConstantData, sizeof(ConstantData));
+                                ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0);
+                                
+                                ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 6, 0, 0);
+                                
+                            }
+                        }
+                    }break;
+                }
+                
+            }
+            
+            
+            hr = IDXGISwapChain_Present(d3d->SwapChain, os->vsync, 0);
+            if (hr == DXGI_STATUS_OCCLUDED)
+            {
+                // window is minimized, cannot vsync - instead sleep a bit
+                if (os->vsync)
+                {
+                    Sleep(10);
+                }
+            }
+            else if (FAILED(hr))
+            {
+                LogError("Failed to present swap chain! Device lost?");
+            }
+            
+        }
+    }
+    
+#endif
 }
 
 
@@ -435,431 +804,3 @@ and how hard would it really be to convert things to d3d once we have a better u
 
 */
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-//~ NOTE(Eric): D3D
-    // NOTE(Eric): Used for sample triangle 
-    global f32 angle = 0;
-    
-    // NOTE(Eric): Camera
-    game_camera *Camera = &GameState->Camera;
-    f32 CameraSpeed = 5.0f; // Meters per second
-    f32 CameraMoveAmount = CameraSpeed * DeltaTime;
-    
-    if (d3d->RenderTargetView == NULL || os->resized)
-    {
-        if (d3d->RenderTargetView)
-        {
-            // release old swap chain buffers
-            ID3D11DeviceContext_ClearState(d3d->DeviceContext);
-            ID3D11RenderTargetView_Release(d3d->RenderTargetView);
-            ID3D11DepthStencilView_Release(d3d->DepthStencilView);
-            d3d->RenderTargetView = NULL;
-        }
-        
-        if (os->window_size.width != 0 && os->window_size.height != 0)
-        {
-            // NOTE(Eric): Resize
-            HRESULT hr = IDXGISwapChain_ResizeBuffers(d3d->SwapChain, 0, width, height, DXGI_FORMAT_UNKNOWN, 0);
-            if (FAILED(hr))
-            {
-                LogError("Failed to resize swap chain!");
-            }
-            
-            D3D11_RENDER_TARGET_VIEW_DESC rtDesc =
-            {
-                .Format = DXGI_FORMAT_R8G8B8A8_UNORM, // or use DXGI_FORMAT_R8G8B8A8_UNORM_SRGB for storing sRGB
-                .ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D,
-            };
-            
-            // create RenderTarget view for new backbuffer texture
-            ID3D11Texture2D* backbuffer;
-            hr = IDXGISwapChain_GetBuffer(d3d->SwapChain, 0, &IID_ID3D11Texture2D, (void**)&backbuffer);
-            AssertHR(hr);
-            hr = ID3D11Device_CreateRenderTargetView(d3d->Device, (ID3D11Resource*)backbuffer, &rtDesc, &d3d->RenderTargetView);
-            AssertHR(hr);
-            ID3D11Texture2D_Release(backbuffer);
-            
-            D3D11_TEXTURE2D_DESC depthDesc =
-            {
-                .Width = width,
-                .Height = height,
-                .MipLevels = 1,
-                .ArraySize = 1,
-                .Format = DXGI_FORMAT_D24_UNORM_S8_UINT, // or use DXGI_FORMAT_D32_FLOAT if you don't need stencil
-                .SampleDesc = { 1, 0 },
-                .Usage = D3D11_USAGE_DEFAULT,
-                .BindFlags = D3D11_BIND_DEPTH_STENCIL,
-            };
-            
-            // create new depth stencil texture & DepthStencil view
-            ID3D11Texture2D* depth;
-            hr = ID3D11Device_CreateTexture2D(d3d->Device, &depthDesc, NULL, &depth);
-            AssertHR(hr);
-            hr = ID3D11Device_CreateDepthStencilView(d3d->Device, (ID3D11Resource*)depth, NULL, &d3d->DepthStencilView);
-            AssertHR(hr);
-            ID3D11Texture2D_Release(depth);
-        }
-        
-        os->resized = 0;
-    }
-    
-    if (os->event_count > 0)
-    {
-        // NOTE(Eric): Not sure if this is how I'm supposed to handle events in the app,
-        // but it's working for now.
-        for (u32 EventIndex = 0;
-             EventIndex < os->event_count;
-             EventIndex++)
-        {
-            OS_Event *Event = 0;
-            OS_GetNextEvent(&Event);
-            if(!Event) break;
-            
-            if (Event->type == OS_EventType_KeyPress)
-            {
-                switch(Event->key)
-                {
-                    case Key_W:
-                    {
-                        
-                    }break;
-                    case Key_A:
-                    {
-                        
-                    }break;
-                    case Key_S:
-                    {
-                        
-                    }break;
-                    case Key_D:
-                    {
-                        
-                    }break;
-                    case Key_Space:
-                    {
-                        
-                    }break;
-                    case Key_Esc:
-                    {
-                        os->quit = 1;
-                    }break;
-                    default:break;
-                }
-            }
-            
-            OS_EatEvent(Event);
-        }
-    }
-    
-    if (d3d->RenderTargetView)
-    {
-        // output viewport covering all client area of window
-        D3D11_VIEWPORT WindowViewport =
-        {
-            .TopLeftX = 0,
-            .TopLeftY = 0,
-            .Width = (FLOAT)os->window_size.width,
-            .Height = (FLOAT)os->window_size.height,
-            .MinDepth = 0,
-            .MaxDepth = 1,
-        };
-        
-        FLOAT ClearColor[] = { 0.392f, 0.584f, 0.929f, 1.f };
-        ID3D11DeviceContext_ClearRenderTargetView(d3d->DeviceContext, d3d->RenderTargetView, ClearColor);
-        ID3D11DeviceContext_ClearDepthStencilView(d3d->DeviceContext, d3d->DepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.f, 0);
-        
-        
-        
-        
-        
-        //
-        //~ NOTE(Eric): Render to screen
-        //~
-        {
-            angle += DeltaTime * 2.0f * (float)PI / 20.0f; // full rotation in 20 seconds
-            angle = fmodf(angle, 2.0f * (float)PI);
-            
-            // NOTE(Eric): Common renderer things that are either shared, or in d3d_info instead of render_info
-            // Rasterizer Stage
-            ID3D11DeviceContext_RSSetViewports(d3d->DeviceContext, 1, &WindowViewport);
-            ID3D11DeviceContext_RSSetState(d3d->DeviceContext, d3d->RasterizerState);
-            
-            // Pixel Shader
-            ID3D11DeviceContext_PSSetSamplers(d3d->DeviceContext, 0, 1, &d3d->Sampler);
-            ID3D11DeviceContext_PSSetShaderResources(d3d->DeviceContext, 0, 1, &d3d->TextureView);
-            
-            // Output Merger
-            ID3D11DeviceContext_OMSetBlendState(d3d->DeviceContext, d3d->BlendState, NULL, ~0U);
-            ID3D11DeviceContext_OMSetDepthStencilState(d3d->DeviceContext, d3d->DepthState, 0);
-            ID3D11DeviceContext_OMSetRenderTargets(d3d->DeviceContext, 1, &d3d->RenderTargetView, d3d->DepthStencilView);
-            
-            for (u32 RenderInfoTypeIndex = 0; RenderInfoTypeIndex < RenderInfoType_Count; RenderInfoTypeIndex++)
-            {
-                switch(RenderInfoTypeIndex)
-                {
-#if 0 // Don't draw the traingle for now.
-                    case RenderInfoType_SampleTriangle:
-                    {
-                        render_info SampleTriangleInfo = GameState->RenderInfos[RenderInfoType_SampleTriangle];
-                        
-                        // Update constant buffer (setup rotation matrix in uniform)
-                        //angle += DeltaTime * 2.0f * (float)PI / 20.0f; // full rotation in 20 seconds
-                        //angle = fmodf(angle, 2.0f * (float)PI);
-                        
-                        float aspect = (float)height / width;
-                        float matrix[] =
-                        {
-                            Cos(angle) * aspect, -Sin(angle), 0.f, 0.f,
-                            Sin(angle) * aspect,  Cos(angle), 0.f, 0.f,
-                        };
-                        
-                        D3D11_MAPPED_SUBRESOURCE mapped;
-                        hr = ID3D11DeviceContext_Map(d3d->DeviceContext, (ID3D11Resource*)SampleTriangleInfo.ConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-                        AssertHR(hr);
-                        memcpy(mapped.pData, matrix, sizeof(matrix));
-                        ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)SampleTriangleInfo.ConstantBuffer, 0);
-                        
-                        
-                        // Input Assembler
-                        ID3D11DeviceContext_IASetInputLayout(d3d->DeviceContext, SampleTriangleInfo.InputLayout);
-                        ID3D11DeviceContext_IASetPrimitiveTopology(d3d->DeviceContext, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-                        UINT stride = sizeof(vertex_data);
-                        UINT offset = 0;
-                        ID3D11DeviceContext_IASetVertexBuffers(d3d->DeviceContext, 0, 1, &SampleTriangleInfo.VertexBuffer, &stride, &offset);
-                        
-                        // Vertex Shader
-                        ID3D11DeviceContext_VSSetConstantBuffers(d3d->DeviceContext, 0, 1, &SampleTriangleInfo.ConstantBuffer);
-                        ID3D11DeviceContext_VSSetShader(d3d->DeviceContext, SampleTriangleInfo.VertexShader, NULL, 0);
-                        
-                        // Pixel Shader
-                        ID3D11DeviceContext_PSSetShader(d3d->DeviceContext, SampleTriangleInfo.PixelShader, NULL, 0);
-                        
-                        // draw 3 vertices
-                        ID3D11DeviceContext_Draw(d3d->DeviceContext, 3, 0);
-                        
-                        
-                    }break;
-#endif
-                    case RenderInfoType_Square:
-                    {
-                        render_info SquareInfo = GameState->RenderInfos[RenderInfoType_Square];
-                        
-                        // Input Assembler
-                        UINT stride = sizeof(v3);
-                        UINT offset = 0;
-                        ID3D11DeviceContext_IASetInputLayout(d3d->DeviceContext, SquareInfo.InputLayout);
-                        ID3D11DeviceContext_IASetPrimitiveTopology(d3d->DeviceContext, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-                        ID3D11DeviceContext_IASetVertexBuffers(d3d->DeviceContext, 0, 1, &SquareInfo.VertexBuffer, &stride, &offset);
-                        ID3D11DeviceContext_IASetIndexBuffer(d3d->DeviceContext, SquareInfo.IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-                        
-                        // Vertex Shader
-                        ID3D11DeviceContext_VSSetConstantBuffers(d3d->DeviceContext, 0, 1, &SquareInfo.ConstantBuffer);
-                        ID3D11DeviceContext_VSSetShader(d3d->DeviceContext, SquareInfo.VertexShader, NULL, 0);
-                        
-                        // Rasterizer Stage
-                        ID3D11DeviceContext_RSSetViewports(d3d->DeviceContext, 1, &WindowViewport);
-                        ID3D11DeviceContext_RSSetState(d3d->DeviceContext, d3d->RasterizerState);
-                        
-                        // Pixel Shader
-                        ID3D11DeviceContext_PSSetShader(d3d->DeviceContext, SquareInfo.PixelShader, NULL, 0);
-                        
-                        
-                        {
-                            // Update the SQUARE constant buffer
-                            
-                            m4 Model = M4InitD(1.0f);
-                            
-                            v3 Scale = v3(0.5f, 0.5f, 0.0f);
-                            Model = M4ScaleV3(Scale);
-                            
-                            m4 View = M4TranslateV3(V3Negate(Camera->Position));
-                            m4 ModelView = M4MultiplyM4(Model, View);
-                            
-                            m4 ModelViewProjection = M4MultiplyM4(ModelView, Camera->Perspective);
-                            
-                            square_constant ConstantData = 
-                            {
-                                {-0.00f, +0.00f, 0.30f, 0.00f}, // cPos
-                                //Cos(angle_square), Sin(angle_square), 0.0f, 0.0f,
-                                
-                                // TODO(Eric): Size does nothing in the shader atm. How would we do that?
-                                {0.0f, 0.0f, 0.0f, 0.0f}, // cSize
-                                
-                                //0.8f, 0.8f, 0.8f, 1.0f   // cColor
-                                {Cos(angle), Sin(angle), 0.8f, 1.0f},
-                                
-                                ModelViewProjection
-                            };
-                            
-                            D3D11_MAPPED_SUBRESOURCE ConstantSubresource;
-                            hr = ID3D11DeviceContext_Map(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &ConstantSubresource);
-                            AssertHR(hr);
-                            memcpy(ConstantSubresource.pData, &ConstantData, sizeof(ConstantData));
-                            ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0);
-                            
-                            // Draw 6 vertices, from the 4 indexes we have set in the vertex buffer (two triangles)
-                            //ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 6, 0, 0);
-                        }
-                        
-                        //~ NOTE(Eric): Test draw a second square, with a different z-value to test depth
-                        // Lower Z == closer to the camera
-                        {
-                            m4 Model = M4InitD(1.0f);
-                            
-                            v3 Scale = v3(0.1f, 0.1f, 0.0f);
-                            Model = M4ScaleV3(Scale);
-                            
-                            
-                            // NOTE(Eric): Testing out an 'offset', to hopefully change it's position.
-                            // However, I'm manually setting the w in the shader, so I don't think this is used.
-                            
-                            //-
-                            // Also IMPORTANT: I'm going back to arcsync tutorials, and my notes on them, because they are great.
-                            // My new idea is to go through them again, along with my notes, and convert the things to dx11,
-                            // so we have a solid understanding of all of it from the ground up.
-                            //-
-                            
-                            
-                            v3 Offset = v3(-0.5f, 1.5f, 0.0f);
-                            Model.elements[3][0] = Offset.x;
-                            Model.elements[3][1] = Offset.y;
-                            Model.elements[3][2] = Offset.z;
-                            Model.elements[3][3] = 1.0f;
-                            
-                            // NOTE(Eric): What I should do now is figure out how to use my own coordinates.
-                            
-                            // NOTE(Eric): A good point in the arcsynth tutorials is that I shouldn't try to force this to work.
-                            // Figure out what I need, and do that. Don't try to force all MVP matrices to work,
-                            // For example, since we are only doing 2d, we might not even need any matrix multiplication at all
-                            // (though, I think it would be needed if we wanted cool zooming in/out effects?)
-                            // Like.. If we just want our own 2d coordinates, we set that up and do our own conversion.
-                            // If our coordinates are just the size of the window, origin at the bottom left,
-                            // it can be the screen center is 0,0 in NDC.
-                            
-                            v2 ExamplePos = {200, 400};
-                            f32 ConvertedX = Lerp(-1, 1, ExamplePos.x/(f32)width);
-                            f32 ConvertedY = Lerp(-1, 1, ExamplePos.y/(f32)height);
-                            
-                            // NOTE(Eric): Sizing is going to be tricky,
-                            // because it's kinda baked into the vertex buffer.
-                            // And we've figured out we can use M4ScaleV3() to change the size,
-                            // but we don't know the actual size before it gets sent to the shader. Or do we?
-                            // and again.. This is an incomplete way of doing it, and will be completely flat.
-                            // I want a perspective 2d, where I can zoom in/out, and move the camera around left/right/up/down
-                            // and have the 2d things work kinda 3d. idk how to put it.
-                            
-                            // Model to LookAt to Perspective
-                            // Model == the thing we are drawing, with it's own coordinates and scale
-                            // LookAt == the point the camera is looking at, or the 'world' I think..
-                            // Perspective == ???
-                            
-                            
-                            m4 ModelView = M4MultiplyM4(Model, Camera->LookAt);
-                            m4 ModelViewProjection = M4MultiplyM4(ModelView, Camera->Perspective);
-                            
-                            square_constant ConstantData[] = 
-                            {
-                                -0.00f, +0.00f, 0.01f, 0.00f, // cPos
-                                //Cos(angle_square), Sin(angle_square), 0.0f, 0.0f,
-                                
-                                // TODO(Eric): Size does nothing in the shader atm. How would we do that?
-                                0.0f, 0.0f, 0.0f, 0.0f, // cSize
-                                
-                                0.8f, 0.8f, 0.8f, 1.0f,   // cColor
-                                //Cos(angle_square), Sin(angle_square), 0.8f, 1.0f
-                                
-                                ModelViewProjection
-                            };
-                            
-                            D3D11_MAPPED_SUBRESOURCE mapped;
-                            hr = ID3D11DeviceContext_Map(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-                            AssertHR(hr);
-                            memcpy(mapped.pData, ConstantData, sizeof(ConstantData));
-                            ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0);
-                            
-                            ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 6, 0, 0);
-                            
-                        }
-                        
-                        // NOTE(Eric): Draw many squares?
-                        if (1)
-                        {
-                            v3 Scale = v3(0.1f, 0.1f, 0.0f);
-                            m4 Model = M4ScaleV3(Scale);
-                            m4 View = M4TranslateV3(V3Negate(Camera->Position));
-                            m4 ModelView = M4MultiplyM4(Model, View);
-                            m4 ModelViewProjection = M4MultiplyM4(ModelView, Camera->Perspective);
-                            
-                            u32 NumSquares = 8;
-                            for (u32 i = 0; i <= NumSquares; i++)
-                            {
-                                f32 NewX = Lerp(-1.0f, 1.0f, i / NumSquares);
-                                v4 NewColor =
-                                {
-                                    Lerp(0.0f, 1.0f, i / NumSquares),
-                                    angle,
-                                    0.5f, 1.0f
-                                };
-                                
-                                square_constant ConstantData = 
-                                {
-                                    NewX, -0.9f, 0.10f, 0.00f, // cPos
-                                    
-                                    0.0f, 0.0f, 0.0f, 0.0f, // cSize
-                                    
-                                    NewColor,   // cColor
-                                    
-                                    ModelViewProjection
-                                };
-                                
-                                D3D11_MAPPED_SUBRESOURCE mapped;
-                                hr = ID3D11DeviceContext_Map(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-                                AssertHR(hr);
-                                memcpy(mapped.pData, &ConstantData, sizeof(ConstantData));
-                                ID3D11DeviceContext_Unmap(d3d->DeviceContext, (ID3D11Resource*)SquareInfo.ConstantBuffer, 0);
-                                
-                                ID3D11DeviceContext_DrawIndexed(d3d->DeviceContext, 6, 0, 0);
-                                
-                            }
-                        }
-                    }break;
-                }
-                
-            }
-            
-            
-            hr = IDXGISwapChain_Present(d3d->SwapChain, os->vsync, 0);
-            if (hr == DXGI_STATUS_OCCLUDED)
-            {
-                // window is minimized, cannot vsync - instead sleep a bit
-                if (os->vsync)
-                {
-                    Sleep(10);
-                }
-            }
-            else if (FAILED(hr))
-            {
-                LogError("Failed to present swap chain! Device lost?");
-            }
-            
-        }
-    }
-*/

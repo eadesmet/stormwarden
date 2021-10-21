@@ -41,10 +41,15 @@ InitRenderer(d3d11_info *d3d, game_state *GameState)
         */
         v3 SquareVertices[] =
         {
-            { -0.50f, +0.50f, 0.00f }, // Top-left
-            { +0.50f, -0.50f, 0.00f }, // Bottom-right
-            { -0.50f, -0.50f, 0.00f }, // Bottom-left
-            { +0.50f, +0.50f, 0.00f }  // Top-right
+            //{ -0.50f, +0.50f, 0.00f }, // Top-left
+            //{ +0.50f, -0.50f, 0.00f }, // Bottom-right
+            //{ -0.50f, -0.50f, 0.00f }, // Bottom-left
+            //{ +0.50f, +0.50f, 0.00f }  // Top-right
+            
+            { -1.00f, +1.00f, 0.00f }, // Top-left
+            { +1.00f, -1.00f, 0.00f }, // Bottom-right
+            { -1.00f, -1.00f, 0.00f }, // Bottom-left
+            { +1.00f, +1.00f, 0.00f }  // Top-right
         };
         
         D3D11_BUFFER_DESC desc =
@@ -133,7 +138,7 @@ InitRenderer(d3d11_info *d3d, game_state *GameState)
         {
             // {{v4(POS)}, {v4(SIZE)}, {v4(COLOR_}}
             // NOTE(Eric): ByteWidth MUST be a multiple of 16
-            .ByteWidth = ((4 * 3) + (4 * 4)) * sizeof(float),
+            .ByteWidth = ((4 * 3) + ((4 * 4) * 3)) * sizeof(float),
             .Usage = D3D11_USAGE_DYNAMIC,
             .BindFlags = D3D11_BIND_CONSTANT_BUFFER,
             .CPUAccessFlags = D3D11_CPU_ACCESS_WRITE,

@@ -224,6 +224,27 @@ M4Perspective(f32 fov, f32 aspect_ratio, f32 near_z, f32 far_z)
 }
 
 internal m4
+M4CameraToClip(f32 FoV_Degrees)
+{
+    m4 Result = {0};
+    
+    f32 DegreesToRadian = PI * 2 / 360;
+    f32 FoV_Radians = FoV_Degrees * DegreesToRadian;
+    f32 fFrustumScale = 1.0f / Tan(FoV_Radians / 2.0f);
+    
+    f32 fzNear = 1.0f;
+    f32 fzFar = 61.0f;
+    
+    Result.elements[0][0] = fFrustumScale;
+    Result.elements[1][1] = fFrustumScale;
+    Result.elements[2][2] = (fzFar + fzNear) / (fzNear - fzFar);
+    Result.elements[2][3] = -1.0f;
+    Result.elements[3][2] = (2 * fzFar * fzNear) / (fzNear - fzFar);
+    
+    return Result;
+}
+
+internal m4
 M4LookAt(v3 eye, v3 center, v3 up)
 {
     m4 result;

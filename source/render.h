@@ -11,6 +11,9 @@ struct square_constant
     v4 Color;
     
     m4 Projection;
+    
+    m4 ModelToCamera;
+    m4 CameraToClip;
 };
 
 

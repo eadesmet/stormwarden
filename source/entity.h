@@ -19,6 +19,8 @@ struct game_camera
     m4 LookAt;
     
     m4 Perspective;
+    
+    m4 CameraToClip;
 };
 
 typedef struct entity_square entity_square;

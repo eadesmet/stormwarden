@@ -7,15 +7,13 @@ W32_LoadOpenGLProcedure(char *name)
     if(!p || p == (void *)0x1 || p == (void *)0x2 || p == (void *)0x3 || p == (void *)-1)
     {
         // NOTE(Eric): ???
-        //HMODULE module = LoadLibraryA("opengl32.dll");
-        //p = (void *)GetProcAddress(module, name);
+        HMODULE module = LoadLibraryA("opengl32.dll");
+        p = (void *)GetProcAddress(module, name);
         
-        return 0;
+        //return 0;
     }
-    else
-    {
-        return p;
-    }
+    
+    return p;
 }
 
 PFNWGLCHOOSEPIXELFORMATARBPROC wglChoosePixelFormatARB;
